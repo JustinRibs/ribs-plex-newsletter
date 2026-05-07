@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import Database from 'better-sqlite3';
 import { DB_PATH } from './config.js';
 import type { Recipient, SendLog, Settings } from './types.js';
@@ -13,11 +14,12 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 CREATE TABLE IF NOT EXISTS recipients (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  email      TEXT NOT NULL UNIQUE,
-  name       TEXT NOT NULL DEFAULT '',
-  active     INTEGER NOT NULL DEFAULT 1,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  email              TEXT NOT NULL UNIQUE,
+  name               TEXT NOT NULL DEFAULT '',
+  active             INTEGER NOT NULL DEFAULT 1,
+  unsubscribe_token  TEXT NOT NULL DEFAULT '',
+  created_at         TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS send_log (
@@ -29,6 +31,26 @@ CREATE TABLE IF NOT EXISTS send_log (
   duration_ms     INTEGER NOT NULL DEFAULT 0
 );
 `);
+
+// --- Migrations -------------------------------------------------------------
+// Add unsubscribe_token if upgrading from a pre-existing DB
+const recipientCols = db.prepare("PRAGMA table_info(recipients)").all() as { name: string }[];
+if (!recipientCols.some((c) => c.name === 'unsubscribe_token')) {
+  db.exec("ALTER TABLE recipients ADD COLUMN unsubscribe_token TEXT NOT NULL DEFAULT ''");
+}
+// Backfill tokens for any rows missing one
+const missingTokens = db.prepare("SELECT id FROM recipients WHERE unsubscribe_token = ''").all() as { id: number }[];
+if (missingTokens.length > 0) {
+  const upd = db.prepare('UPDATE recipients SET unsubscribe_token = ? WHERE id = ?');
+  const tx = db.transaction(() => {
+    for (const r of missingTokens) upd.run(generateToken(), r.id);
+  });
+  tx();
+}
+
+function generateToken(): string {
+  return crypto.randomBytes(18).toString('base64url');
+}
 
 const DEFAULTS: Settings = {
   tautulli_url: '',
@@ -61,7 +83,9 @@ const DEFAULTS: Settings = {
 
   schedule_cron: '0 9 * * 0',
   schedule_enabled: 0,
-  newsletter_subject: 'New on Plex — {{date}}'
+  newsletter_subject: 'New on Plex — {{date}}',
+
+  public_url: ''
 };
 
 // Seed defaults for any missing key
@@ -111,9 +135,19 @@ export function listActiveRecipients(): Recipient[] {
 
 export function addRecipient(email: string, name: string): Recipient {
   const info = db
-    .prepare('INSERT INTO recipients (email, name) VALUES (?, ?)')
-    .run(email.trim().toLowerCase(), name.trim());
+    .prepare('INSERT INTO recipients (email, name, unsubscribe_token) VALUES (?, ?, ?)')
+    .run(email.trim().toLowerCase(), name.trim(), generateToken());
   return db.prepare('SELECT * FROM recipients WHERE id = ?').get(info.lastInsertRowid) as Recipient;
+}
+
+export function findRecipientByToken(token: string): Recipient | null {
+  if (!token) return null;
+  const r = db.prepare('SELECT * FROM recipients WHERE unsubscribe_token = ?').get(token) as Recipient | undefined;
+  return r || null;
+}
+
+export function deactivateRecipient(id: number): void {
+  db.prepare('UPDATE recipients SET active = 0 WHERE id = ?').run(id);
 }
 
 export function updateRecipient(id: number, patch: { email?: string; name?: string; active?: number }): Recipient | null {

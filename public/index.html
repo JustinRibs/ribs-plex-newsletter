@@ -4,6 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ribs-newsletter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -130,6 +133,18 @@
             <span id="test-smtp-status" class="hint"></span>
           </div>
           <p class="hint">For best deliverability, set up SPF, DKIM, and DMARC records on your sending domain in Brevo.</p>
+
+          <h3>Public URL (for unsubscribe links)</h3>
+          <div class="row single">
+            <label>Where this app is reachable from the internet
+              <input data-field="public_url" type="url" placeholder="https://newsletter.yourdomain.com" />
+            </label>
+          </div>
+          <p class="hint">
+            Used to build per-recipient unsubscribe links and the <code>List-Unsubscribe</code> header (one-click compliance for Gmail / Yahoo).
+            Leave blank to omit unsubscribe links — fine for a tiny private list, not recommended for anything bigger.
+            No trailing slash, e.g. <code>https://newsletter.yourdomain.com</code>.
+          </p>
         </section>
 
         <section id="section-content" class="card">

@@ -4,7 +4,7 @@ import mjml2html from 'mjml';
 import { TautulliClient, formatDuration } from '../tautulli.js';
 import { UPLOADS_DIR } from '../config.js';
 import type { ComposedNewsletter, RecentlyAddedItem, Settings } from '../types.js';
-import { buildMjml, type RenderedItem, type RenderedShow, type RenderedStatRow, type TemplateData } from './template.js';
+import { buildMjml, UNSUBSCRIBE_PLACEHOLDER, type RenderedItem, type RenderedShow, type RenderedStatRow, type TemplateData } from './template.js';
 
 interface Attachment {
   filename: string;
@@ -200,6 +200,8 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
     year: 'numeric'
   });
 
+  const includeUnsubscribe = !!settings.public_url;
+
   const tplData: TemplateData = {
     settings,
     movies,
@@ -210,7 +212,8 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
     topUsers,
     stats,
     generatedDate,
-    logoCid
+    logoCid,
+    includeUnsubscribe
   };
 
   const mjml = buildMjml(tplData);
@@ -285,6 +288,10 @@ function buildPlainText(d: TemplateData): string {
     lines.push(`NEW MUSIC (${d.music.length})`);
     for (const m of d.music) lines.push(`• ${m.title}${m.subtitle ? ` — ${m.subtitle}` : ''}`);
     lines.push('');
+  }
+  if (d.includeUnsubscribe) {
+    lines.push('---');
+    lines.push(`To unsubscribe: ${UNSUBSCRIBE_PLACEHOLDER}`);
   }
   return lines.join('\n');
 }

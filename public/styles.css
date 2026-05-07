@@ -19,9 +19,17 @@ html, body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-feature-settings: "cv02", "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   font-size: 14px;
   line-height: 1.5;
+  letter-spacing: -0.005em;
+}
+
+code, pre, kbd, samp {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
 a { color: var(--accent); text-decoration: none; }
@@ -61,8 +69,8 @@ a:hover { color: var(--accent-hover); }
   place-items: center;
   font-weight: 700;
 }
-.brand-title { font-weight: 700; }
-.brand-sub { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+.brand-title { font-weight: 700; letter-spacing: -0.02em; }
+.brand-sub { font-size: 10.5px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600; }
 
 .sidebar nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
 .nav-link {
@@ -84,9 +92,10 @@ a:hover { color: var(--accent-hover); }
   display: inline-block;
   padding: 4px 10px;
   border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 .pill-muted { background: var(--surface); color: var(--muted); }
 .pill-active { background: rgba(34,197,94,0.15); color: var(--success); }
@@ -99,7 +108,7 @@ a:hover { color: var(--accent-hover); }
   justify-content: space-between;
   margin-bottom: 24px;
 }
-.topbar h1 { margin: 0; font-size: 22px; font-weight: 700; }
+.topbar h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
 .topbar-actions { display: flex; align-items: center; gap: 12px; }
 
 .card {
@@ -111,18 +120,20 @@ a:hover { color: var(--accent-hover); }
   scroll-margin-top: 16px;
 }
 .card h2 {
-  margin: 0 0 18px;
-  font-size: 16px;
-  letter-spacing: 0.5px;
+  margin: 0 0 20px;
+  font-size: 12px;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--accent);
+  font-weight: 700;
 }
 .card h3 {
   margin: 22px 0 12px;
-  font-size: 13px;
-  letter-spacing: 1px;
+  font-size: 11px;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--muted);
+  font-weight: 700;
 }
 
 .row {
@@ -135,9 +146,10 @@ a:hover { color: var(--accent-hover); }
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--muted);
   font-weight: 500;
+  letter-spacing: 0;
 }
 .row.single { grid-template-columns: 1fr; }
 
@@ -156,13 +168,14 @@ input[type="text"], input[type="email"], input[type="url"], input[type="password
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 9px 11px;
+  padding: 10px 12px;
   font: inherit;
   font-size: 13.5px;
+  font-weight: 500;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-input:focus, textarea:focus { border-color: var(--accent); }
+input:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(229, 160, 13, 0.15); }
 textarea { resize: vertical; min-height: 70px; font-family: inherit; }
 
 .color-row { display: flex; gap: 8px; }
@@ -185,6 +198,7 @@ textarea { resize: vertical; min-height: 70px; font-family: inherit; }
   font: inherit;
   font-size: 13px;
   font-weight: 600;
+  letter-spacing: -0.005em;
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s, transform 0.04s;
 }
@@ -265,7 +279,7 @@ textarea { resize: vertical; min-height: 70px; font-family: inherit; }
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
-.table th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+.table th { color: var(--muted); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; }
 .table .row-actions { text-align: right; }
 
 #preview-frame {

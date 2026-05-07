@@ -7,7 +7,9 @@ import fastifyMultipart from '@fastify/multipart';
 import { ADMIN_PASSWORD, PORT, UPLOADS_DIR } from './config.js';
 import {
   addRecipient,
+  deactivateRecipient,
   deleteRecipient,
+  findRecipientByToken,
   getSettings,
   listRecipients,
   listSendLog,
@@ -37,7 +39,8 @@ await fastify.register(fastifyStatic, {
 
 if (ADMIN_PASSWORD) {
   fastify.addHook('onRequest', async (req, reply) => {
-    // skip auth for static assets so 401 doesn't break browsers loading the login dialog
+    // The unsubscribe endpoint must be reachable by recipients without auth
+    if (req.url.startsWith('/unsubscribe')) return;
     const auth = req.headers.authorization || '';
     const expected = 'Basic ' + Buffer.from(`admin:${ADMIN_PASSWORD}`).toString('base64');
     if (auth !== expected) {
@@ -225,6 +228,33 @@ fastify.post('/api/send-now', async (_req, reply) => {
 fastify.get('/api/schedule', async () => getScheduleStatus());
 fastify.get('/api/sendlog', async () => listSendLog(50));
 
+// --- Public unsubscribe (no auth) ------------------------------------------
+
+fastify.route<{ Querystring: { token?: string } }>({
+  method: ['GET', 'POST'],
+  url: '/unsubscribe',
+  handler: async (req, reply) => {
+    const token = (req.query.token || '').trim();
+    const r = findRecipientByToken(token);
+    if (!r) {
+      reply.code(404).header('Content-Type', 'text/html; charset=utf-8').send(unsubscribePage({
+        title: 'Invalid link',
+        body: "This unsubscribe link doesn't match any recipient — it may have already been used or rotated. If you keep getting unwanted emails, reply to one of them and ask the sender to remove you.",
+        success: false
+      }));
+      return;
+    }
+
+    if (r.active) deactivateRecipient(r.id);
+
+    reply.header('Content-Type', 'text/html; charset=utf-8').send(unsubscribePage({
+      title: 'Unsubscribed',
+      body: `You won't receive any more newsletters at <strong>${escapeHtml(r.email)}</strong>. If this was a mistake, ask the sender to re-enable you.`,
+      success: true
+    }));
+  }
+});
+
 // --- Boot -------------------------------------------------------------------
 
 reloadScheduler();
@@ -256,4 +286,41 @@ function escapeHtml(s: string): string {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+function unsubscribePage(opts: { title: string; body: string; success: boolean }): string {
+  const accent = opts.success ? '#22c55e' : '#ef4444';
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${escapeHtml(opts.title)}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root { color-scheme: dark; }
+    html, body { margin: 0; padding: 0; height: 100%; background: #0e0e10; color: #f5f5f7;
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    .wrap { min-height: 100%; display: grid; place-items: center; padding: 32px; box-sizing: border-box; }
+    .card { background: #16161a; border: 1px solid #2a2a30; border-radius: 12px; padding: 36px 40px; max-width: 480px; text-align: center; }
+    .icon { width: 48px; height: 48px; margin: 0 auto 18px; border-radius: 50%; background: ${accent}22; color: ${accent};
+      display: grid; place-items: center; font-size: 28px; font-weight: 700; }
+    h1 { margin: 0 0 12px; font-size: 22px; letter-spacing: -0.02em; }
+    p { margin: 0; color: #a1a1aa; font-size: 14px; line-height: 1.6; }
+    strong { color: #f5f5f7; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="icon">${opts.success ? '✓' : '!'}</div>
+      <h1>${escapeHtml(opts.title)}</h1>
+      <p>${opts.body}</p>
+    </div>
+  </div>
+</body>
+</html>`;
 }

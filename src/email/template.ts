@@ -12,7 +12,12 @@ export interface TemplateData {
   stats?: { totalPlays: number; totalDuration: string; windowDays: number };
   generatedDate: string;
   logoCid?: string;
+  /** When true, the footer renders an Unsubscribe link with the {{UNSUBSCRIBE_URL}} placeholder. */
+  includeUnsubscribe?: boolean;
 }
+
+/** Placeholder string the sender substitutes per-recipient. */
+export const UNSUBSCRIBE_PLACEHOLDER = '{{UNSUBSCRIBE_URL}}';
 
 export interface RenderedItem {
   title: string;
@@ -61,7 +66,7 @@ function shortSummary(s: string | undefined, max = 220): string {
 }
 
 export function buildMjml(data: TemplateData): string {
-  const { settings, movies, shows, music, topMovies, topTV, topUsers, stats, generatedDate, logoCid } = data;
+  const { settings, movies, shows, music, topMovies, topTV, topUsers, stats, generatedDate, logoCid, includeUnsubscribe } = data;
   const accent = settings.brand_accent || '#e5a00d';
   const brandName = esc(settings.brand_name || 'Plex Newsletter');
   const headerHtml = settings.brand_header_html || '';
@@ -109,6 +114,12 @@ export function buildMjml(data: TemplateData): string {
     `
     : '';
 
+  const unsubscribeLink = includeUnsubscribe
+    ? `<mj-text align="center" color="${muted}" font-size="11px" padding="6px 0 0 0">
+         <a href="${UNSUBSCRIBE_PLACEHOLDER}" style="color:${muted}; text-decoration:underline;">Unsubscribe from this newsletter</a>
+       </mj-text>`
+    : '';
+
   const footerSection = `
     <mj-section background-color="${bg}" padding="24px">
       <mj-column>
@@ -119,6 +130,7 @@ export function buildMjml(data: TemplateData): string {
             : ''
         }
         <mj-text align="center" color="${muted}" font-size="11px" padding="12px 0 0 0">${brandName} • ${esc(generatedDate)}</mj-text>
+        ${unsubscribeLink}
       </mj-column>
     </mj-section>
   `;
@@ -127,14 +139,21 @@ export function buildMjml(data: TemplateData): string {
   <mj-head>
     <mj-title>${brandName}</mj-title>
     <mj-preview>${brandName} — recently added on Plex</mj-preview>
+    <mj-font name="Inter" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
     <mj-attributes>
-      <mj-all font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" />
+      <mj-all font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" />
       <mj-text color="${text}" font-size="14px" line-height="1.55" />
       <mj-section background-color="${bg}" />
     </mj-attributes>
     <mj-style>
       a, a:visited { color: ${accent} !important; text-decoration: none; }
       img { max-width: 100%; height: auto; display: block; }
+      body, table, td, div, p, a, span, h1, h2, h3, h4 {
+        font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+        font-feature-settings: 'cv02', 'cv11', 'ss01';
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
       @media only screen and (max-width:480px) {
         .card-poster-wrap { padding: 0 !important; }
         .card-content { padding: 14px !important; }

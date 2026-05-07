@@ -23,7 +23,7 @@ curl -O https://raw.githubusercontent.com/JustinRibs/ribs-newsletter/main/docker
 docker compose up -d
 ```
 
-Open <http://localhost:3000> in your browser.
+Open <http://localhost:1998> in your browser.
 
 To protect the UI with HTTP basic auth (username `admin`), set `ADMIN_PASSWORD`:
 

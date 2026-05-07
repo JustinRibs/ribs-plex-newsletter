@@ -35,6 +35,9 @@ export interface Settings {
   schedule_cron: string;      // e.g. "0 9 * * 0" for Sundays 9am
   schedule_enabled: number;
   newsletter_subject: string; // can include {{date}}
+
+  // Delivery
+  public_url: string;         // base URL the app is reachable at — used to build unsubscribe links
 }
 
 export interface Recipient {
@@ -42,6 +45,7 @@ export interface Recipient {
   email: string;
   name: string;
   active: number;
+  unsubscribe_token: string;
   created_at: string;
 }
 

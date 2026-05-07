@@ -1,7 +1,20 @@
 import nodemailer, { type Transporter } from 'nodemailer';
 import { getSettings, listActiveRecipients, logSend } from '../db.js';
 import { composeNewsletter } from './compose.js';
-import type { ComposedNewsletter, Settings } from '../types.js';
+import { UNSUBSCRIBE_PLACEHOLDER } from './template.js';
+import type { ComposedNewsletter, Recipient, Settings } from '../types.js';
+
+const PLACEHOLDER_RE = new RegExp(escapeRegex(UNSUBSCRIBE_PLACEHOLDER), 'g');
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function buildUnsubscribeUrl(publicUrl: string, token: string): string {
+  if (!publicUrl || !token) return '';
+  const base = publicUrl.replace(/\/+$/, '');
+  return `${base}/unsubscribe?token=${encodeURIComponent(token)}`;
+}
 
 export function buildTransporter(s: Settings): Transporter {
   return nodemailer.createTransport({
@@ -25,10 +38,16 @@ export async function verifySmtp(s: Settings): Promise<{ ok: boolean; message: s
   }
 }
 
+export interface SendableRecipient {
+  email: string;
+  name?: string;
+  unsubscribe_token?: string;
+}
+
 export async function sendComposed(
   s: Settings,
   composed: ComposedNewsletter,
-  recipients: { email: string; name?: string }[]
+  recipients: SendableRecipient[]
 ): Promise<{ sent: number; failed: number; errors: string[] }> {
   const transporter = buildTransporter(s);
   const fromAddr = s.smtp_from_email || s.smtp_user;
@@ -38,16 +57,30 @@ export async function sendComposed(
   let failed = 0;
   const errors: string[] = [];
 
-  // Send individually so one bad address doesn't poison the batch
+  // Send individually so one bad address doesn't poison the batch and so each
+  // message gets its own per-recipient unsubscribe URL.
   for (const r of recipients) {
     const to = r.name ? `"${r.name}" <${r.email}>` : r.email;
+    const unsubUrl = buildUnsubscribeUrl(s.public_url, r.unsubscribe_token || '');
+
+    const html = unsubUrl ? composed.html.replace(PLACEHOLDER_RE, unsubUrl) : composed.html.replace(PLACEHOLDER_RE, '#');
+    const text = unsubUrl ? composed.text.replace(PLACEHOLDER_RE, unsubUrl) : composed.text.replace(PLACEHOLDER_RE, '');
+
+    const headers: Record<string, string> = {};
+    if (unsubUrl) {
+      // RFC 2369 + RFC 8058 (one-click unsubscribe)
+      headers['List-Unsubscribe'] = `<${unsubUrl}>`;
+      headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
+    }
+
     try {
       await transporter.sendMail({
         from,
         to,
         subject: composed.subject,
-        html: composed.html,
-        text: composed.text,
+        html,
+        text,
+        headers,
         attachments: composed.attachments.map((a) => ({
           filename: a.filename,
           content: a.content,
@@ -71,11 +104,15 @@ export async function runNewsletter(opts: { dryRun?: boolean; testRecipient?: st
   const settings = getSettings();
   const composed = await composeNewsletter(settings);
 
-  let recipients: { email: string; name?: string }[];
+  let recipients: SendableRecipient[];
   if (opts.testRecipient) {
     recipients = [{ email: opts.testRecipient }];
   } else {
-    recipients = listActiveRecipients().map((r) => ({ email: r.email, name: r.name }));
+    recipients = listActiveRecipients().map((r: Recipient) => ({
+      email: r.email,
+      name: r.name,
+      unsubscribe_token: r.unsubscribe_token
+    }));
   }
 
   if (recipients.length === 0) {

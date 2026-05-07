@@ -22,7 +22,7 @@ FROM node:20-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production
 ENV DATA_DIR=/data
-ENV PORT=3000
+ENV PORT=1998
 
 RUN mkdir -p /data && chown -R node:node /data
 
@@ -32,7 +32,7 @@ COPY --from=build --chown=node:node /app/public ./public
 COPY --from=build --chown=node:node /app/package.json ./package.json
 
 USER node
-EXPOSE 3000
+EXPOSE 1998
 VOLUME ["/data"]
 
 CMD ["node", "dist/server.js"]
