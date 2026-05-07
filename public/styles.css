@@ -292,6 +292,19 @@ textarea { resize: vertical; min-height: 70px; font-family: inherit; }
 }
 #test-email { width: 240px; }
 
+.import-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.import-row .hint { flex: 1; }
+.import-row strong { color: var(--text); font-weight: 600; }
+
 .status-success { color: var(--success); font-weight: 600; }
 .status-failed { color: var(--danger); font-weight: 600; }
 .status-partial { color: var(--warning); font-weight: 600; }

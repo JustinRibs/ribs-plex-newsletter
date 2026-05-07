@@ -11,6 +11,7 @@ import {
   deleteRecipient,
   findRecipientByToken,
   getSettings,
+  importRecipient,
   listRecipients,
   listSendLog,
   updateRecipient,
@@ -117,6 +118,46 @@ fastify.put<{ Params: { id: string }; Body: { email?: string; name?: string; act
     return r;
   }
 );
+
+fastify.post<{ Body?: { active?: boolean } }>('/api/recipients/import-from-plex', async (req, reply) => {
+  const settings = getSettings();
+  if (!settings.tautulli_url || !settings.tautulli_api_key) {
+    return reply.code(400).send({ error: 'Tautulli is not configured yet' });
+  }
+  const importActive = req.body?.active ? 1 : 0;
+  try {
+    const t = new TautulliClient(settings.tautulli_url, settings.tautulli_api_key);
+    const users = await t.getUsers();
+    let imported = 0;
+    let skippedExisting = 0;
+    let skippedNoEmail = 0;
+    const importedList: { email: string; name: string }[] = [];
+
+    for (const u of users) {
+      const email = (u.email || '').trim().toLowerCase();
+      if (!email || !/^.+@.+\..+$/.test(email)) {
+        skippedNoEmail += 1;
+        continue;
+      }
+      const name = (u.friendly_name || u.username || '').trim();
+      const result = importRecipient(email, name, importActive as 0 | 1);
+      if (!result) {
+        skippedNoEmail += 1;
+        continue;
+      }
+      if (result.created) {
+        imported += 1;
+        importedList.push({ email, name });
+      } else {
+        skippedExisting += 1;
+      }
+    }
+
+    return { ok: true, imported, skippedExisting, skippedNoEmail, importedList };
+  } catch (err: any) {
+    return reply.code(500).send({ error: err?.message || 'Import failed' });
+  }
+});
 
 fastify.delete<{ Params: { id: string } }>('/api/recipients/:id', async (req, reply) => {
   const id = Number(req.params.id);

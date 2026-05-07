@@ -1,5 +1,5 @@
 import { request } from 'undici';
-import type { HomeStat, RecentlyAddedItem } from './types.js';
+import type { HomeStat, RecentlyAddedItem, TautulliUser } from './types.js';
 
 export class TautulliError extends Error {}
 
@@ -42,6 +42,11 @@ export class TautulliClient {
     if (mediaType) params.media_type = mediaType;
     const data = await this.call<{ recently_added: RecentlyAddedItem[] }>('get_recently_added', params);
     return data?.recently_added || [];
+  }
+
+  async getUsers(): Promise<TautulliUser[]> {
+    const data = await this.call<TautulliUser[]>('get_users');
+    return data || [];
   }
 
   async getHomeStats(timeRange: number, statsCount = 5): Promise<HomeStat[]> {

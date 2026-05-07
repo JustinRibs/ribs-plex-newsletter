@@ -339,6 +339,36 @@ function bindActions() {
       alert(err.message);
     }
   });
+  $('#import-plex-btn').addEventListener('click', async () => {
+    const btn = $('#import-plex-btn');
+    const status = $('#import-plex-status');
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Importing…';
+    status.textContent = '';
+    status.className = 'hint';
+    try {
+      const r = await api('/api/recipients/import-from-plex', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: false })
+      });
+      const parts = [];
+      if (r.imported) parts.push(`${r.imported} imported`);
+      if (r.skippedExisting) parts.push(`${r.skippedExisting} already added`);
+      if (r.skippedNoEmail) parts.push(`${r.skippedNoEmail} skipped (no email)`);
+      status.textContent = parts.length > 0 ? parts.join(' · ') : 'Nothing to import.';
+      status.className = `hint ${r.imported > 0 ? 'success' : ''}`;
+      await loadRecipients();
+    } catch (err) {
+      status.textContent = `Import failed: ${err.message}`;
+      status.className = 'hint error';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  });
+
   $('#recipients-table').addEventListener('click', async (e) => {
     const del = e.target.closest('[data-delete]');
     if (del) {

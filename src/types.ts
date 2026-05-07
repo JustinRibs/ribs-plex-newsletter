@@ -101,6 +101,18 @@ export interface HomeStat {
   rows: HomeStatRow[];
 }
 
+export interface TautulliUser {
+  user_id: number;
+  username: string;
+  friendly_name?: string;
+  email?: string | null;
+  thumb?: string;
+  is_active?: number;
+  is_admin?: number;
+  is_home_user?: number;
+  is_restricted?: number;
+}
+
 export interface ComposedNewsletter {
   subject: string;
   html: string;

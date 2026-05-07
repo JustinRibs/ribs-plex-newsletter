@@ -140,6 +140,26 @@ export function addRecipient(email: string, name: string): Recipient {
   return db.prepare('SELECT * FROM recipients WHERE id = ?').get(info.lastInsertRowid) as Recipient;
 }
 
+/**
+ * Insert a recipient if their email isn't already in the table. Returns the
+ * row plus a `created` flag. Idempotent — safe to call repeatedly during a bulk import.
+ */
+export function importRecipient(
+  email: string,
+  name: string,
+  active: 0 | 1 = 0
+): { recipient: Recipient; created: boolean } | null {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail) return null;
+  const existing = db.prepare('SELECT * FROM recipients WHERE email = ?').get(cleanEmail) as Recipient | undefined;
+  if (existing) return { recipient: existing, created: false };
+  const info = db
+    .prepare('INSERT INTO recipients (email, name, active, unsubscribe_token) VALUES (?, ?, ?, ?)')
+    .run(cleanEmail, name.trim(), active, generateToken());
+  const recipient = db.prepare('SELECT * FROM recipients WHERE id = ?').get(info.lastInsertRowid) as Recipient;
+  return { recipient, created: true };
+}
+
 export function findRecipientByToken(token: string): Recipient | null {
   if (!token) return null;
   const r = db.prepare('SELECT * FROM recipients WHERE unsubscribe_token = ?').get(token) as Recipient | undefined;
