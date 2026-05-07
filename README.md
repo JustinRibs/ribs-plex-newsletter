@@ -18,14 +18,18 @@ A self-hosted replacement for Tautulli's "Recently Added" newsletter. Pulls rece
 The image is published to Docker Hub at [`dockerjustin98/ribs-newsletter`](https://hub.docker.com/r/dockerjustin98/ribs-newsletter), built for both `linux/amd64` and `linux/arm64` (so it runs on Synology, Raspberry Pi, M-series Macs, and standard Linux servers).
 
 ```bash
-mkdir ribs-newsletter && cd ribs-newsletter
-curl -O https://raw.githubusercontent.com/JustinRibs/ribs-newsletter/main/docker-compose.yml
+mkdir ribs-plex-newsletter && cd ribs-plex-newsletter
+curl -O https://raw.githubusercontent.com/JustinRibs/ribs-plex-newsletter/main/docker-compose.yml
 docker compose up -d
 ```
 
 Open <http://localhost:1998> in your browser.
 
-To protect the UI with HTTP basic auth (username `admin`), set `ADMIN_PASSWORD`:
+### Auth (optional)
+
+By default the UI has no authentication — fine for a trusted home network or when you're putting the app behind something else (Cloudflare Access, Tailscale, Authelia, an Nginx auth_request, etc.).
+
+If you want built-in HTTP basic auth (username `admin`), set `ADMIN_PASSWORD`:
 
 ```bash
 ADMIN_PASSWORD=your-password docker compose up -d
@@ -38,6 +42,8 @@ TZ=America/New_York
 ADMIN_PASSWORD=your-password
 ```
 
+The `/unsubscribe` route stays public regardless so recipients can always opt out.
+
 Updating later:
 
 ```bash
@@ -47,8 +53,8 @@ docker compose pull && docker compose up -d
 ## Build from source
 
 ```bash
-git clone https://github.com/JustinRibs/ribs-newsletter.git
-cd ribs-newsletter
+git clone https://github.com/JustinRibs/ribs-plex-newsletter.git
+cd ribs-plex-newsletter
 cp .env.example .env
 # edit docker-compose.yml: comment out `image:` and uncomment `build: .`
 docker compose up -d --build
@@ -91,6 +97,45 @@ data/
 
 Back up the entire `data/` directory and you've backed up your full configuration.
 
+## Troubleshooting
+
+### `EACCES: permission denied, mkdir '/data/uploads'`
+
+The container can't write to the bind-mounted `./data` directory because the in-container user doesn't have write permission on the host folder. This affects older images that ran as the `node` user (uid 1000). Two fixes:
+
+**Easiest — pull the latest image** (current images run as root and don't hit this):
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+**If you can't pull a new image** (e.g. running an old build), grant the host folder to uid 1000:
+
+```bash
+sudo chown -R 1000:1000 ./data
+docker compose up -d
+```
+
+### Schedule never fires
+
+- Confirm the container is up: `docker compose ps`
+- Check `TZ` matches what you expect — cron is interpreted in the container's timezone (`docker compose exec ribs-newsletter date`)
+- Watch the live logs while you wait for the next fire: `docker compose logs -f ribs-newsletter`
+
+The scheduler intentionally does **not** run a "missed" send if the container was down at the scheduled time — it just waits for the next one.
+
+### Emails land in spam
+
+Almost always a DNS issue, not a code issue:
+
+- In Brevo's dashboard → Senders & IP → Domains, verify SPF / DKIM / DMARC are all green for your sending domain.
+- Use a real From address on a domain you control (not `@gmail.com` or other free providers — they'll fail DMARC alignment).
+- Send a test to <https://www.mail-tester.com/> and act on whatever it flags.
+
+### Posters missing in the email
+
+Posters are fetched from Tautulli's image proxy and embedded as inline attachments — the container needs to be able to reach Tautulli on the network. If you've changed Tautulli's URL/port and the test connection in the UI passes but emails arrive without posters, restart the newsletter container so it picks up the new config: `docker compose restart`.
+
 ## API
 
 Everything the UI does is exposed via REST under `/api`:
@@ -108,3 +153,12 @@ Everything the UI does is exposed via REST under `/api`:
 | `/api/send-now` | POST | Fire the newsletter to all active recipients now |
 | `/api/schedule` | GET | Current cron status + next run |
 | `/api/sendlog` | GET | Recent send history |
+
+## Want to support me? Here's my Venmo
+
+If this project saved you some time, a tip is always appreciated — totally optional, no hard feelings either way.
+
+**Venmo:** [@justin-ribarich](https://venmo.com/justin-ribarich)
+
+<img src="venmo-qr.png" alt="Venmo QR code for @justin-ribarich" width="240">
+

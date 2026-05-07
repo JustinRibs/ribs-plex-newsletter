@@ -305,6 +305,30 @@ textarea { resize: vertical; min-height: 70px; font-family: inherit; }
 .import-row .hint { flex: 1; }
 .import-row strong { color: var(--text); font-weight: 600; }
 
+.skipped-block { margin-top: 16px; padding: 16px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
+.skipped-block h3 { margin: 0 0 6px; }
+.skipped-block .hint { margin: 0 0 12px; }
+
+.skipped-row {
+  display: grid;
+  grid-template-columns: 1fr 240px 90px;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.skipped-row:first-of-type { border-top: 0; padding-top: 4px; }
+.skipped-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.skipped-meta strong { color: var(--text); font-size: 13.5px; font-weight: 600; }
+.skipped-meta .username { color: var(--muted); font-size: 12px; font-family: "JetBrains Mono", monospace; }
+.skipped-row input[type="email"] { width: 100%; }
+.skipped-row.done { opacity: 0.5; }
+.skipped-row.done input, .skipped-row.done button { pointer-events: none; }
+
+@media (max-width: 720px) {
+  .skipped-row { grid-template-columns: 1fr; }
+}
+
 .status-success { color: var(--success); font-weight: 600; }
 .status-failed { color: var(--danger); font-weight: 600; }
 .status-partial { color: var(--warning); font-weight: 600; }

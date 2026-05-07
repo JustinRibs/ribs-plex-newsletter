@@ -59,12 +59,16 @@
 
           <div class="row">
             <label>Header (HTML allowed)
-              <textarea data-field="brand_header_html" rows="3" placeholder="Here's what's new this week."></textarea>
+              <textarea data-field="brand_header_html" rows="3" placeholder="Hey {{first_name}}, here's what's new this week."></textarea>
             </label>
             <label>Footer (HTML allowed)
               <textarea data-field="brand_footer_html" rows="3" placeholder="You're receiving this because you have access to my Plex server."></textarea>
             </label>
           </div>
+          <p class="hint">
+            Placeholders: <code>{{first_name}}</code>, <code>{{name}}</code>, <code>{{email}}</code>, <code>{{unsubscribe_url}}</code>.
+            Falls back to <strong>"there"</strong> when a recipient has no name set (e.g. <em>"Hey there,"</em>).
+          </p>
 
           <div class="logo-block">
             <div class="logo-preview" id="logo-preview">
@@ -208,7 +212,7 @@
               <input data-field="schedule_cron" type="text" placeholder="0 9 * * 0" />
             </label>
             <label>Email subject
-              <input data-field="newsletter_subject" type="text" placeholder="New on Plex — {{date}}" />
+              <input data-field="newsletter_subject" type="text" placeholder="Hey {{first_name}}, new on Plex — {{date}}" />
             </label>
           </div>
           <div class="presets">
@@ -240,6 +244,12 @@
           <div class="import-row">
             <button id="import-plex-btn" class="btn">Import from Plex</button>
             <span id="import-plex-status" class="hint">Pulls everyone with shared access who has an email on file in Tautulli. New imports start <strong>inactive</strong> so you can review them before they receive anything.</span>
+          </div>
+
+          <div id="skipped-imports" class="skipped-block" hidden>
+            <h3>Plex users without an email — add manually</h3>
+            <p class="hint">These users have access to your server but Tautulli doesn't have their email. Names are pre-filled — just enter their address.</p>
+            <div id="skipped-list"></div>
           </div>
 
           <table class="table" id="recipients-table">

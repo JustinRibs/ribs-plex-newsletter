@@ -19,7 +19,7 @@ import {
 } from './db.js';
 import { TautulliClient } from './tautulli.js';
 import { composeNewsletter } from './email/compose.js';
-import { runNewsletter, verifySmtp } from './email/send.js';
+import { applySubstitutions, buildPreviewUnsubscribeUrl, PREVIEW_TOKEN, runNewsletter, verifySmtp } from './email/send.js';
 import { getScheduleStatus, reloadScheduler } from './scheduler.js';
 import type { Settings } from './types.js';
 
@@ -130,30 +130,43 @@ fastify.post<{ Body?: { active?: boolean } }>('/api/recipients/import-from-plex'
     const users = await t.getUsers();
     let imported = 0;
     let skippedExisting = 0;
-    let skippedNoEmail = 0;
     const importedList: { email: string; name: string }[] = [];
+    const skippedNoEmailList: { username: string; name: string }[] = [];
 
     for (const u of users) {
+      const username = (u.username || '').trim();
+      const friendlyName = (u.friendly_name || username).trim();
       const email = (u.email || '').trim().toLowerCase();
+
+      // Skip the local Plex Media Server account ("Local") which has no real email
       if (!email || !/^.+@.+\..+$/.test(email)) {
-        skippedNoEmail += 1;
+        if (username && username.toLowerCase() !== 'local') {
+          skippedNoEmailList.push({ username, name: friendlyName });
+        }
         continue;
       }
-      const name = (u.friendly_name || u.username || '').trim();
-      const result = importRecipient(email, name, importActive as 0 | 1);
+
+      const result = importRecipient(email, friendlyName, importActive as 0 | 1);
       if (!result) {
-        skippedNoEmail += 1;
+        skippedNoEmailList.push({ username, name: friendlyName });
         continue;
       }
       if (result.created) {
         imported += 1;
-        importedList.push({ email, name });
+        importedList.push({ email, name: friendlyName });
       } else {
         skippedExisting += 1;
       }
     }
 
-    return { ok: true, imported, skippedExisting, skippedNoEmail, importedList };
+    return {
+      ok: true,
+      imported,
+      skippedExisting,
+      skippedNoEmail: skippedNoEmailList.length,
+      importedList,
+      skippedNoEmailList
+    };
   } catch (err: any) {
     return reply.code(500).send({ error: err?.message || 'Import failed' });
   }
@@ -246,7 +259,13 @@ fastify.get('/api/preview', async (_req, reply) => {
   const settings = getSettings();
   try {
     const composed = await composeNewsletter(settings);
-    const html = inlineCidImages(composed.html, composed.attachments);
+    const previewCtx = {
+      unsubscribeUrl: buildPreviewUnsubscribeUrl(settings.public_url),
+      name: 'Alex',
+      email: 'preview@example.com'
+    };
+    const substituted = applySubstitutions(composed.html, previewCtx);
+    const html = inlineCidImages(substituted, composed.attachments);
     reply.header('Content-Type', 'text/html; charset=utf-8').send(html);
   } catch (err: any) {
     reply.code(500).header('Content-Type', 'text/html; charset=utf-8').send(
@@ -271,30 +290,41 @@ fastify.get('/api/sendlog', async () => listSendLog(50));
 
 // --- Public unsubscribe (no auth) ------------------------------------------
 
-fastify.route<{ Querystring: { token?: string } }>({
-  method: ['GET', 'POST'],
-  url: '/unsubscribe',
-  handler: async (req, reply) => {
-    const token = (req.query.token || '').trim();
-    const r = findRecipientByToken(token);
-    if (!r) {
-      reply.code(404).header('Content-Type', 'text/html; charset=utf-8').send(unsubscribePage({
-        title: 'Invalid link',
-        body: "This unsubscribe link doesn't match any recipient — it may have already been used or rotated. If you keep getting unwanted emails, reply to one of them and ask the sender to remove you.",
-        success: false
-      }));
-      return;
-    }
+const unsubscribeHandler = async (req: FastifyRequest<{ Querystring: { token?: string } }>, reply: FastifyReply) => {
+  const token = (req.query.token || '').trim();
 
-    if (r.active) deactivateRecipient(r.id);
-
+  // Test sends + previews use a sentinel token so admins can click the link
+  // safely without unsubscribing themselves or getting an "Invalid" page.
+  if (token === PREVIEW_TOKEN) {
     reply.header('Content-Type', 'text/html; charset=utf-8').send(unsubscribePage({
-      title: 'Unsubscribed',
-      body: `You won't receive any more newsletters at <strong>${escapeHtml(r.email)}</strong>. If this was a mistake, ask the sender to re-enable you.`,
+      title: 'Preview link',
+      body: 'This is what your recipients will see. In real emails, this link unsubscribes that specific recipient — the test/preview version is a no-op.',
       success: true
     }));
+    return;
   }
-});
+
+  const r = findRecipientByToken(token);
+  if (!r) {
+    reply.code(404).header('Content-Type', 'text/html; charset=utf-8').send(unsubscribePage({
+      title: 'Invalid link',
+      body: "This unsubscribe link doesn't match any recipient — it may have already been used or rotated. If you keep getting unwanted emails, reply to one of them and ask the sender to remove you.",
+      success: false
+    }));
+    return;
+  }
+
+  if (r.active) deactivateRecipient(r.id);
+
+  reply.header('Content-Type', 'text/html; charset=utf-8').send(unsubscribePage({
+    title: 'Unsubscribed',
+    body: `You won't receive any more newsletters at <strong>${escapeHtml(r.email)}</strong>. If this was a mistake, ask the sender to re-enable you.`,
+    success: true
+  }));
+};
+
+fastify.get<{ Querystring: { token?: string } }>('/unsubscribe', unsubscribeHandler);
+fastify.post<{ Querystring: { token?: string } }>('/unsubscribe', unsubscribeHandler);
 
 // --- Boot -------------------------------------------------------------------
 

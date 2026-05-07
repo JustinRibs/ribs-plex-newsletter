@@ -24,14 +24,15 @@ ENV NODE_ENV=production
 ENV DATA_DIR=/data
 ENV PORT=1998
 
-RUN mkdir -p /data && chown -R node:node /data
+RUN mkdir -p /data
 
-COPY --from=build --chown=node:node /app/node_modules ./node_modules
-COPY --from=build --chown=node:node /app/dist ./dist
-COPY --from=build --chown=node:node /app/public ./public
-COPY --from=build --chown=node:node /app/package.json ./package.json
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/public ./public
+COPY --from=build /app/package.json ./package.json
 
-USER node
+# Run as root so bind-mounted /data is writable regardless of host UID/GID.
+# This is the standard pattern for self-hosted apps (Tautulli, Sonarr, etc.).
 EXPOSE 1998
 VOLUME ["/data"]
 

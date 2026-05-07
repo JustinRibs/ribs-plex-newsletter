@@ -1,19 +1,47 @@
 import nodemailer, { type Transporter } from 'nodemailer';
 import { getSettings, listActiveRecipients, logSend } from '../db.js';
 import { composeNewsletter } from './compose.js';
-import { UNSUBSCRIBE_PLACEHOLDER } from './template.js';
 import type { ComposedNewsletter, Recipient, Settings } from '../types.js';
 
-const PLACEHOLDER_RE = new RegExp(escapeRegex(UNSUBSCRIBE_PLACEHOLDER), 'g');
-
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+export const PREVIEW_TOKEN = '__preview__';
 
 export function buildUnsubscribeUrl(publicUrl: string, token: string): string {
   if (!publicUrl || !token) return '';
   const base = publicUrl.replace(/\/+$/, '');
   return `${base}/unsubscribe?token=${encodeURIComponent(token)}`;
+}
+
+export function buildPreviewUnsubscribeUrl(publicUrl: string): string {
+  if (!publicUrl) return '#preview';
+  const base = publicUrl.replace(/\/+$/, '');
+  return `${base}/unsubscribe?token=${PREVIEW_TOKEN}`;
+}
+
+export interface SubstitutionContext {
+  unsubscribeUrl: string;
+  name?: string;
+  email?: string;
+  /** Falls back to "there" when the recipient has no name set. */
+  nameFallback?: string;
+}
+
+/**
+ * Apply per-recipient placeholder substitutions to a subject / HTML / text body.
+ * Supported tokens: {{name}}, {{first_name}}, {{email}}, {{unsubscribe_url}}, {{UNSUBSCRIBE_URL}}.
+ * Whitespace inside the braces is tolerated.
+ */
+export function applySubstitutions(text: string, ctx: SubstitutionContext): string {
+  const fallback = ctx.nameFallback ?? 'there';
+  const fullName = (ctx.name || '').trim();
+  const firstName = fullName.split(/\s+/)[0] || '';
+  const replacements: Array<[RegExp, string]> = [
+    [/\{\{\s*UNSUBSCRIBE_URL\s*\}\}/g, ctx.unsubscribeUrl],
+    [/\{\{\s*unsubscribe_url\s*\}\}/g, ctx.unsubscribeUrl],
+    [/\{\{\s*first_name\s*\}\}/g, firstName || fallback],
+    [/\{\{\s*name\s*\}\}/g, fullName || fallback],
+    [/\{\{\s*email\s*\}\}/g, ctx.email || '']
+  ];
+  return replacements.reduce((acc, [re, val]) => acc.replace(re, val), text);
 }
 
 export function buildTransporter(s: Settings): Transporter {
@@ -58,18 +86,26 @@ export async function sendComposed(
   const errors: string[] = [];
 
   // Send individually so one bad address doesn't poison the batch and so each
-  // message gets its own per-recipient unsubscribe URL.
+  // message gets its own per-recipient unsubscribe URL + name substitutions.
   for (const r of recipients) {
     const to = r.name ? `"${r.name}" <${r.email}>` : r.email;
-    const unsubUrl = buildUnsubscribeUrl(s.public_url, r.unsubscribe_token || '');
+    const realUnsubUrl = buildUnsubscribeUrl(s.public_url, r.unsubscribe_token || '');
+    const substituteUrl = realUnsubUrl || buildPreviewUnsubscribeUrl(s.public_url);
 
-    const html = unsubUrl ? composed.html.replace(PLACEHOLDER_RE, unsubUrl) : composed.html.replace(PLACEHOLDER_RE, '#');
-    const text = unsubUrl ? composed.text.replace(PLACEHOLDER_RE, unsubUrl) : composed.text.replace(PLACEHOLDER_RE, '');
+    const subCtx: SubstitutionContext = {
+      unsubscribeUrl: substituteUrl,
+      name: r.name,
+      email: r.email
+    };
+    const subject = applySubstitutions(composed.subject, subCtx);
+    const html = applySubstitutions(composed.html, subCtx);
+    const text = applySubstitutions(composed.text, subCtx);
 
     const headers: Record<string, string> = {};
-    if (unsubUrl) {
-      // RFC 2369 + RFC 8058 (one-click unsubscribe)
-      headers['List-Unsubscribe'] = `<${unsubUrl}>`;
+    if (realUnsubUrl) {
+      // RFC 2369 + RFC 8058 (one-click unsubscribe). Only set headers for real
+      // recipients — test sends shouldn't auto-unsubscribe via Gmail's button.
+      headers['List-Unsubscribe'] = `<${realUnsubUrl}>`;
       headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
     }
 
@@ -77,7 +113,7 @@ export async function sendComposed(
       await transporter.sendMail({
         from,
         to,
-        subject: composed.subject,
+        subject,
         html,
         text,
         headers,

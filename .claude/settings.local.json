@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sips -s format png /Users/justinribarich/Downloads/IMG_0524.heic --out /Users/justinribarich/ribs-newsletter/venmo-qr.png)"
+    ]
+  }
+}

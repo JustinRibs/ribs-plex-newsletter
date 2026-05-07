@@ -131,6 +131,58 @@ async function loadRecipients() {
   }
 }
 
+function renderSkippedImports(skipped) {
+  const block = $('#skipped-imports');
+  const list = $('#skipped-list');
+  list.innerHTML = '';
+  if (!skipped || skipped.length === 0) {
+    block.hidden = true;
+    return;
+  }
+  block.hidden = false;
+  for (const u of skipped) {
+    const row = document.createElement('div');
+    row.className = 'skipped-row';
+    row.innerHTML = `
+      <div class="skipped-meta">
+        <strong>${escapeHtml(u.name || u.username)}</strong>
+        <span class="username">@${escapeHtml(u.username)}</span>
+      </div>
+      <input type="email" placeholder="email@example.com" />
+      <button class="btn btn-primary" type="button">Add</button>
+    `;
+    const input = row.querySelector('input');
+    const addBtn = row.querySelector('button');
+    addBtn.addEventListener('click', async () => {
+      const email = (input.value || '').trim();
+      if (!email || !/^.+@.+\..+$/.test(email)) {
+        input.focus();
+        input.style.borderColor = 'var(--danger)';
+        return;
+      }
+      addBtn.disabled = true;
+      addBtn.textContent = 'Adding…';
+      try {
+        await api('/api/recipients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, name: u.name || u.username })
+        });
+        row.classList.add('done');
+        addBtn.textContent = 'Added';
+        await loadRecipients();
+      } catch (err) {
+        addBtn.disabled = false;
+        addBtn.textContent = 'Add';
+        input.style.borderColor = 'var(--danger)';
+        alert(err.message);
+      }
+    });
+    input.addEventListener('input', () => { input.style.borderColor = ''; });
+    list.appendChild(row);
+  }
+}
+
 async function loadHistory() {
   const tbody = $('#history-table tbody');
   tbody.innerHTML = '';
@@ -359,6 +411,7 @@ function bindActions() {
       if (r.skippedNoEmail) parts.push(`${r.skippedNoEmail} skipped (no email)`);
       status.textContent = parts.length > 0 ? parts.join(' · ') : 'Nothing to import.';
       status.className = `hint ${r.imported > 0 ? 'success' : ''}`;
+      renderSkippedImports(r.skippedNoEmailList || []);
       await loadRecipients();
     } catch (err) {
       status.textContent = `Import failed: ${err.message}`;
