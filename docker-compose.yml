@@ -1,0 +1,13 @@
+services:
+  ribs-newsletter:
+    build: .
+    image: ribs-newsletter:latest
+    container_name: ribs-newsletter
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      TZ: ${TZ:-America/New_York}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    volumes:
+      - ./data:/data

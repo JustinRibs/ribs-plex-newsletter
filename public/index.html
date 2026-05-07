@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ribs-newsletter</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-title">ribs-newsletter</div>
+            <div class="brand-sub">Plex digest</div>
+          </div>
+        </div>
+        <nav>
+          <a href="#section-branding" class="nav-link active" data-target="section-branding">Branding</a>
+          <a href="#section-tautulli" class="nav-link" data-target="section-tautulli">Tautulli</a>
+          <a href="#section-smtp" class="nav-link" data-target="section-smtp">Email (SMTP)</a>
+          <a href="#section-content" class="nav-link" data-target="section-content">Content</a>
+          <a href="#section-schedule" class="nav-link" data-target="section-schedule">Schedule</a>
+          <a href="#section-recipients" class="nav-link" data-target="section-recipients">Recipients</a>
+          <a href="#section-preview" class="nav-link" data-target="section-preview">Preview &amp; Send</a>
+          <a href="#section-history" class="nav-link" data-target="section-history">History</a>
+        </nav>
+        <div class="sidebar-footer">
+          <div id="schedule-pill" class="pill pill-muted">Schedule off</div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <h1 id="page-title">Branding</h1>
+          <div class="topbar-actions">
+            <button id="save-btn" class="btn btn-primary" disabled>Save changes</button>
+            <span id="save-status" class="hint"></span>
+          </div>
+        </header>
+
+        <section id="section-branding" class="card">
+          <h2>Branding</h2>
+          <div class="row">
+            <label>Newsletter name
+              <input data-field="brand_name" type="text" placeholder="My Plex Newsletter" />
+            </label>
+            <label>Accent color
+              <div class="color-row">
+                <input data-field="brand_accent" type="text" placeholder="#e5a00d" />
+                <input data-field-pair="brand_accent" type="color" />
+              </div>
+            </label>
+          </div>
+
+          <div class="row">
+            <label>Header (HTML allowed)
+              <textarea data-field="brand_header_html" rows="3" placeholder="Here's what's new this week."></textarea>
+            </label>
+            <label>Footer (HTML allowed)
+              <textarea data-field="brand_footer_html" rows="3" placeholder="You're receiving this because you have access to my Plex server."></textarea>
+            </label>
+          </div>
+
+          <div class="logo-block">
+            <div class="logo-preview" id="logo-preview">
+              <span class="muted">No logo uploaded</span>
+            </div>
+            <div class="logo-actions">
+              <input id="logo-input" type="file" accept="image/png,image/jpeg,image/gif,image/svg+xml,image/webp" hidden />
+              <button class="btn" id="logo-upload-btn">Upload logo</button>
+              <button class="btn btn-danger" id="logo-remove-btn">Remove</button>
+              <p class="hint">PNG / JPG / SVG / WebP up to 5MB. Wide logos look best.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="section-tautulli" class="card">
+          <h2>Tautulli</h2>
+          <div class="row">
+            <label>Tautulli URL
+              <input data-field="tautulli_url" type="url" placeholder="http://192.168.1.x:8181" />
+            </label>
+            <label>API key
+              <input data-field="tautulli_api_key" type="password" placeholder="hex string from Tautulli settings" />
+            </label>
+          </div>
+          <div class="actions">
+            <button class="btn" id="test-tautulli-btn">Test connection</button>
+            <span id="test-tautulli-status" class="hint"></span>
+          </div>
+          <p class="hint">The container needs to reach Tautulli over the network. Posters are fetched server-side and embedded in the email, so recipients don't need direct access.</p>
+        </section>
+
+        <section id="section-smtp" class="card">
+          <h2>Email (SMTP)</h2>
+          <div class="row">
+            <label>SMTP host
+              <input data-field="smtp_host" type="text" placeholder="smtp-relay.brevo.com" />
+            </label>
+            <label>SMTP port
+              <input data-field="smtp_port" type="number" placeholder="587" />
+            </label>
+          </div>
+          <div class="row">
+            <label class="checkbox">
+              <input data-field="smtp_secure" type="checkbox" />
+              <span>Use TLS (port 465)</span>
+            </label>
+          </div>
+          <div class="row">
+            <label>Username
+              <input data-field="smtp_user" type="text" placeholder="your-brevo-username" />
+            </label>
+            <label>Password
+              <input data-field="smtp_pass" type="password" placeholder="leave blank to keep current" />
+            </label>
+          </div>
+          <div class="row">
+            <label>From name
+              <input data-field="smtp_from_name" type="text" placeholder="My Plex" />
+            </label>
+            <label>From email
+              <input data-field="smtp_from_email" type="email" placeholder="newsletter@yourdomain.com" />
+            </label>
+          </div>
+          <div class="actions">
+            <button class="btn" id="test-smtp-btn">Test SMTP</button>
+            <span id="test-smtp-status" class="hint"></span>
+          </div>
+          <p class="hint">For best deliverability, set up SPF, DKIM, and DMARC records on your sending domain in Brevo.</p>
+        </section>
+
+        <section id="section-content" class="card">
+          <h2>Content</h2>
+          <div class="row">
+            <label>Recently-added items per category (max)
+              <input data-field="recently_added_count" type="number" min="1" max="100" />
+            </label>
+          </div>
+          <div class="row">
+            <label class="checkbox">
+              <input data-field="include_movies" type="checkbox" />
+              <span>Include movies</span>
+            </label>
+            <label class="checkbox">
+              <input data-field="include_tv" type="checkbox" />
+              <span>Include TV episodes</span>
+            </label>
+            <label class="checkbox">
+              <input data-field="include_music" type="checkbox" />
+              <span>Include music albums</span>
+            </label>
+            <label class="checkbox">
+              <input data-field="show_summaries" type="checkbox" />
+              <span>Show summaries</span>
+            </label>
+          </div>
+
+          <h3>Optional sections</h3>
+          <div class="row">
+            <label class="checkbox">
+              <input data-field="enable_top_watched" type="checkbox" />
+              <span>Most watched (movies + TV)</span>
+            </label>
+            <label class="checkbox">
+              <input data-field="enable_top_users" type="checkbox" />
+              <span>Top viewers</span>
+            </label>
+            <label class="checkbox">
+              <input data-field="enable_stats" type="checkbox" />
+              <span>Plays + watch time stats</span>
+            </label>
+          </div>
+          <div class="row">
+            <label>Stats window (days)
+              <input data-field="stats_window_days" type="number" min="1" max="90" />
+            </label>
+          </div>
+        </section>
+
+        <section id="section-schedule" class="card">
+          <h2>Schedule</h2>
+          <div class="row">
+            <label class="checkbox">
+              <input data-field="schedule_enabled" type="checkbox" />
+              <span>Enable scheduled sending</span>
+            </label>
+          </div>
+          <div class="row">
+            <label>Cron expression
+              <input data-field="schedule_cron" type="text" placeholder="0 9 * * 0" />
+            </label>
+            <label>Email subject
+              <input data-field="newsletter_subject" type="text" placeholder="New on Plex — {{date}}" />
+            </label>
+          </div>
+          <div class="presets">
+            <span class="hint">Presets:</span>
+            <button class="btn btn-ghost" data-cron="0 9 * * 0">Sun 9am</button>
+            <button class="btn btn-ghost" data-cron="0 9 * * 1">Mon 9am</button>
+            <button class="btn btn-ghost" data-cron="0 9 * * 5">Fri 9am</button>
+            <button class="btn btn-ghost" data-cron="0 9 1 * *">1st of month, 9am</button>
+            <button class="btn btn-ghost" data-cron="0 18 * * 0">Sun 6pm</button>
+          </div>
+          <p class="hint">Times are evaluated in the container's <code id="tz-name">TZ</code> timezone.<br/>
+            Use <a href="https://crontab.guru/" target="_blank" rel="noreferrer">crontab.guru</a> to build custom expressions. The subject supports <code>{{date}}</code>.
+          </p>
+          <div id="next-run" class="hint"></div>
+        </section>
+
+        <section id="section-recipients" class="card">
+          <h2>Recipients</h2>
+          <form id="add-recipient-form" class="row">
+            <label>Email
+              <input id="new-recipient-email" type="email" placeholder="friend@example.com" required />
+            </label>
+            <label>Name (optional)
+              <input id="new-recipient-name" type="text" placeholder="Friend Name" />
+            </label>
+            <button type="submit" class="btn btn-primary">Add</button>
+          </form>
+          <table class="table" id="recipients-table">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Name</th>
+                <th>Active</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+        <section id="section-preview" class="card">
+          <h2>Preview &amp; Send</h2>
+          <div class="actions">
+            <button id="preview-btn" class="btn">Refresh preview</button>
+            <input id="test-email" type="email" placeholder="you@example.com" />
+            <button id="test-send-btn" class="btn">Send test to me</button>
+            <button id="send-now-btn" class="btn btn-primary">Send to all active recipients</button>
+          </div>
+          <span id="send-status" class="hint"></span>
+          <iframe id="preview-frame" title="Newsletter preview"></iframe>
+        </section>
+
+        <section id="section-history" class="card">
+          <h2>History</h2>
+          <table class="table" id="history-table">
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>Recipients</th>
+                <th>Status</th>
+                <th>Duration</th>
+                <th>Message</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+      </main>
+    </div>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

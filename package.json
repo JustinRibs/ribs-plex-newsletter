@@ -1,0 +1,36 @@
+{
+  "name": "ribs-newsletter",
+  "version": "0.1.0",
+  "description": "Self-hosted Plex newsletter — pulls from Tautulli, sends a beautifully designed email on a schedule.",
+  "private": true,
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@fastify/multipart": "^8.3.0",
+    "@fastify/static": "^7.0.4",
+    "better-sqlite3": "^11.3.0",
+    "croner": "^8.1.2",
+    "dotenv": "^16.4.5",
+    "fastify": "^4.28.1",
+    "mjml": "^4.15.3",
+    "nodemailer": "^6.9.16",
+    "undici": "^6.21.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/mjml": "^4.7.4",
+    "@types/node": "^22.7.5",
+    "@types/nodemailer": "^6.4.16",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2"
+  }
+}
