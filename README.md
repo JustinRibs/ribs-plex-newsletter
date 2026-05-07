@@ -13,16 +13,46 @@ A self-hosted replacement for Tautulli's "Recently Added" newsletter. Pulls rece
 - **Test send + preview** — render the newsletter in the browser before sending, or fire a one-off test to your own address.
 - **Self-contained** — everything stored in a single SQLite file at `/data/ribs.db`. Mount the `./data` volume to persist.
 
-## Run with Docker Compose
+## Quick start (no clone required)
+
+The image is published to Docker Hub at [`dockerjustin98/ribs-newsletter`](https://hub.docker.com/r/dockerjustin98/ribs-newsletter), built for both `linux/amd64` and `linux/arm64` (so it runs on Synology, Raspberry Pi, M-series Macs, and standard Linux servers).
 
 ```bash
-cp .env.example .env   # edit if you want a password / different TZ
-docker compose up -d --build
+mkdir ribs-newsletter && cd ribs-newsletter
+curl -O https://raw.githubusercontent.com/JustinRibs/ribs-newsletter/main/docker-compose.yml
+docker compose up -d
 ```
 
 Open <http://localhost:3000> in your browser.
 
-If you set `ADMIN_PASSWORD` in `.env`, the UI is protected by HTTP basic auth (username `admin`).
+To protect the UI with HTTP basic auth (username `admin`), set `ADMIN_PASSWORD`:
+
+```bash
+ADMIN_PASSWORD=your-password docker compose up -d
+```
+
+…or write it into a `.env` file next to the compose file:
+
+```env
+TZ=America/New_York
+ADMIN_PASSWORD=your-password
+```
+
+Updating later:
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+## Build from source
+
+```bash
+git clone https://github.com/JustinRibs/ribs-newsletter.git
+cd ribs-newsletter
+cp .env.example .env
+# edit docker-compose.yml: comment out `image:` and uncomment `build: .`
+docker compose up -d --build
+```
 
 ## First-time setup
 

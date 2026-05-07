@@ -1,7 +1,8 @@
 services:
   ribs-newsletter:
-    build: .
-    image: ribs-newsletter:latest
+    image: dockerjustin98/ribs-newsletter:latest
+    # For local development, comment out `image:` above and uncomment `build:` below.
+    # build: .
     container_name: ribs-newsletter
     restart: unless-stopped
     ports:
