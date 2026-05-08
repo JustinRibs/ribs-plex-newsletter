@@ -76,7 +76,7 @@ const DEFAULTS: Settings = {
   brand_header_html: 'Here’s what’s new this week.',
   brand_footer_html: 'You’re receiving this because you have access to my Plex server.',
 
-  recently_added_count: 20,
+  recently_added_count: 8,
   include_movies: 1,
   include_tv: 1,
   include_music: 0,

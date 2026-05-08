@@ -92,7 +92,7 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
   if (settings.include_movies) {
     const movieItems = all.filter((i) => i.media_type === 'movie').slice(0, settings.recently_added_count);
     for (const m of movieItems) {
-      const posterSrc = m.thumb ? await resolveImage(m.thumb, `movie-${m.rating_key}`, 400) : undefined;
+      const posterSrc = m.thumb ? await resolveImage(m.thumb, `movie-${m.rating_key}`, 200) : undefined;
       movies.push({
         title: m.title,
         year: m.year ? String(m.year) : undefined,
@@ -114,9 +114,17 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
 
     for (const [showName, eps] of grouped) {
       const showThumb = eps[0].grandparent_thumb || eps[0].parent_thumb;
-      const posterSrc = showThumb ? await resolveImage(showThumb, `show-${eps[0].grandparent_rating_key || eps[0].rating_key}`, 320) : undefined;
+      const posterSrc = showThumb ? await resolveImage(showThumb, `show-${eps[0].grandparent_rating_key || eps[0].rating_key}`, 200) : undefined;
       const renderedEps = eps
-        .sort((a, b) => Number(a.parent_title || '0') - Number(b.parent_title || '0') || (a.title || '').localeCompare(b.title || ''))
+        .sort((a, b) => {
+          const sa = parseInt((a.parent_title || '').replace(/\D/g, '') || '0', 10);
+          const sb = parseInt((b.parent_title || '').replace(/\D/g, '') || '0', 10);
+          if (sa !== sb) return sa - sb;
+          const ea = parseInt(((a as any).media_index || '0').toString(), 10);
+          const eb = parseInt(((b as any).media_index || '0').toString(), 10);
+          if (ea !== eb) return ea - eb;
+          return (a.title || '').localeCompare(b.title || '');
+        })
         .map((ep) => {
           const seasonNum = parseInt((ep.parent_title || '').replace(/\D/g, '') || '0', 10);
           const epNum = parseInt(((ep as any).media_index || '0').toString(), 10);
@@ -125,8 +133,8 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
           else if (seasonNum) label = `Season ${seasonNum}`;
           return {
             label,
-            title: ep.title,
-            summary: settings.show_summaries ? ep.summary : undefined
+            title: ep.title
+            // Per-episode summaries omitted by design — keeps the TV section compact.
           };
         });
       shows.push({ title: showName, posterSrc, episodes: renderedEps });
@@ -136,7 +144,7 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
   if (settings.include_music) {
     const albumItems = all.filter((i) => i.media_type === 'album').slice(0, settings.recently_added_count);
     for (const a of albumItems) {
-      const posterSrc = a.thumb ? await resolveImage(a.thumb, `album-${a.rating_key}`, 320) : undefined;
+      const posterSrc = a.thumb ? await resolveImage(a.thumb, `album-${a.rating_key}`, 200) : undefined;
       music.push({
         title: a.title,
         subtitle: a.parent_title,

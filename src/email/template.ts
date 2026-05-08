@@ -51,10 +51,11 @@ export interface RenderedStatRow {
 
 const COLORS = {
   bg: '#0e0e10',
-  card: '#16161a',
   text: '#f5f5f7',
+  textSoft: '#d4d4d8',
   muted: '#a1a1aa',
-  divider: '#2a2a30'
+  divider: '#222226',
+  hairline: '#1c1c20'
 };
 
 function esc(s: string | undefined | null): string {
@@ -67,7 +68,7 @@ function esc(s: string | undefined | null): string {
     .replace(/'/g, '&#39;');
 }
 
-function shortSummary(s: string | undefined, max = 220): string {
+function shortSummary(s: string | undefined, max = 110): string {
   if (!s) return '';
   const trimmed = s.trim().replace(/\s+/g, ' ');
   if (trimmed.length <= max) return trimmed;
@@ -80,30 +81,35 @@ export function buildMjml(data: TemplateData): string {
   const brandName = esc(settings.brand_name || 'Plex Newsletter');
   const headerHtml = settings.brand_header_html || '';
   const footerHtml = settings.brand_footer_html || '';
-  const { bg, card, text, muted, divider } = COLORS;
+  const showSummaries = !!settings.show_summaries;
+  const { bg, text, muted, divider } = COLORS;
 
   const logoBlock = logoSrc
-    ? `<mj-image src="${esc(logoSrc)}" alt="${brandName}" width="160px" align="center" padding="0" />`
-    : `<mj-text align="center" font-size="26px" font-weight="700" color="${text}" padding="0">${brandName}</mj-text>`;
+    ? `<mj-image src="${esc(logoSrc)}" alt="${brandName}" width="140px" align="center" padding="0" />`
+    : `<mj-text align="center" font-size="24px" font-weight="700" color="${text}" letter-spacing="-0.02em" padding="0">${brandName}</mj-text>`;
 
   const headerSection = `
-    <mj-section background-color="${bg}" padding="32px 24px 8px 24px">
+    <mj-section background-color="${bg}" padding="44px 32px 0 32px">
       <mj-column>
+        <mj-text align="center" color="${accent}" font-size="10.5px" letter-spacing="2.5px" font-weight="700" text-transform="uppercase" padding="0 0 24px 0">${esc(generatedDate)}</mj-text>
         ${logoBlock}
         ${
           headerHtml
-            ? `<mj-text align="center" color="${muted}" font-size="14px" line-height="1.5" padding="16px 12px 0 12px">${headerHtml}</mj-text>`
+            ? `<mj-text align="center" color="${muted}" font-size="14px" line-height="1.6" padding="20px 16px 0 16px">${headerHtml}</mj-text>`
             : ''
         }
-        <mj-text align="center" color="${accent}" font-size="11px" letter-spacing="2px" font-weight="700" text-transform="uppercase" padding="20px 0 0 0">${esc(generatedDate)}</mj-text>
-        <mj-divider border-color="${accent}" border-width="2px" width="40px" padding="12px 0 4px 0" />
+      </mj-column>
+    </mj-section>
+    <mj-section background-color="${bg}" padding="36px 32px 0 32px">
+      <mj-column>
+        <mj-divider border-color="${divider}" border-width="1px" padding="0" />
       </mj-column>
     </mj-section>
   `;
 
-  const movieSections = movies.length > 0 ? renderItemList('New Movies', movies, accent) : '';
+  const movieSections = movies.length > 0 ? renderItemList('New Movies', movies, accent, { showSummaries }) : '';
   const showSections = shows.length > 0 ? renderShows(shows, accent) : '';
-  const musicSections = music.length > 0 ? renderItemList('New Music', music, accent) : '';
+  const musicSections = music.length > 0 ? renderItemList('New Music', music, accent, { showSummaries }) : '';
 
   const topMoviesSection =
     topMovies && topMovies.length > 0 ? renderStatBlock('Most Watched Movies', topMovies, accent) : '';
@@ -115,9 +121,9 @@ export function buildMjml(data: TemplateData): string {
   const nothingNew = movies.length === 0 && shows.length === 0 && music.length === 0;
   const emptyState = nothingNew
     ? `
-      <mj-section background-color="${bg}" padding="24px">
+      <mj-section background-color="${bg}" padding="48px 32px">
         <mj-column>
-          <mj-text align="center" color="${muted}" font-size="14px">Nothing new was added this period — but the catalog is still here whenever you are.</mj-text>
+          <mj-text align="center" color="${muted}" font-size="14px" line-height="1.6">Nothing new was added this period — but the catalog is still here whenever you are.</mj-text>
         </mj-column>
       </mj-section>
     `
@@ -125,20 +131,20 @@ export function buildMjml(data: TemplateData): string {
 
   const unsubscribeLink = includeUnsubscribe
     ? `<mj-text align="center" color="${muted}" font-size="11px" padding="6px 0 0 0">
-         <a href="${UNSUBSCRIBE_PLACEHOLDER}" style="color:${muted}; text-decoration:underline;">Unsubscribe from this newsletter</a>
+         <a href="${UNSUBSCRIBE_PLACEHOLDER}" style="color:${muted}; text-decoration:underline;">Unsubscribe</a>
        </mj-text>`
     : '';
 
   const footerSection = `
-    <mj-section background-color="${bg}" padding="24px">
+    <mj-section background-color="${bg}" padding="48px 32px 32px 32px">
       <mj-column>
-        <mj-divider border-color="${divider}" border-width="1px" padding="0 0 16px 0" />
+        <mj-divider border-color="${divider}" border-width="1px" padding="0 0 24px 0" />
         ${
           footerHtml
-            ? `<mj-text align="center" color="${muted}" font-size="12px" line-height="1.6">${footerHtml}</mj-text>`
+            ? `<mj-text align="center" color="${muted}" font-size="12px" line-height="1.7">${footerHtml}</mj-text>`
             : ''
         }
-        <mj-text align="center" color="${muted}" font-size="11px" padding="12px 0 0 0">${brandName} • ${esc(generatedDate)}</mj-text>
+        <mj-text align="center" color="${muted}" font-size="11px" letter-spacing="0.3px" padding="14px 0 0 0">${brandName}</mj-text>
         ${unsubscribeLink}
       </mj-column>
     </mj-section>
@@ -151,7 +157,7 @@ export function buildMjml(data: TemplateData): string {
     <mj-font name="Inter" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
     <mj-attributes>
       <mj-all font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" />
-      <mj-text color="${text}" font-size="14px" line-height="1.55" />
+      <mj-text color="${text}" font-size="14px" line-height="1.6" />
       <mj-section background-color="${bg}" />
     </mj-attributes>
     <mj-style>
@@ -163,11 +169,12 @@ export function buildMjml(data: TemplateData): string {
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
       }
+      .stat-number { font-variant-numeric: tabular-nums; }
+      .stat-rank { font-variant-numeric: tabular-nums; }
       @media only screen and (max-width:480px) {
-        .card-poster-wrap { padding: 0 !important; }
-        .card-content { padding: 14px !important; }
-        .card-poster-wrap img { width: 100% !important; max-width: 100% !important; height: auto !important; border-radius: 0 !important; }
-        .episode-label { font-size: 10px !important; }
+        .item-poster img { width: 80px !important; max-width: 80px !important; }
+        .item-poster { padding-right: 14px !important; }
+        .show-episodes-table td { font-size: 13px !important; }
       }
     </mj-style>
   </mj-head>
@@ -186,144 +193,165 @@ export function buildMjml(data: TemplateData): string {
 </mjml>`;
 }
 
-function sectionTitle(title: string, accent: string): string {
+function sectionHeader(title: string, count: number, accent: string): string {
+  const { muted, divider } = COLORS;
   return `
-    <mj-section background-color="${COLORS.bg}" padding="32px 24px 8px 24px">
+    <mj-section background-color="${COLORS.bg}" padding="40px 32px 0 32px">
       <mj-column>
-        <mj-text font-size="11px" letter-spacing="2px" font-weight="700" text-transform="uppercase" color="${accent}" padding="0">${esc(title)}</mj-text>
-        <mj-divider border-color="${accent}" border-width="2px" width="32px" align="left" padding="8px 0 0 0" />
+        <mj-text font-size="10.5px" letter-spacing="2.5px" font-weight="700" text-transform="uppercase" color="${muted}" padding="0 0 14px 0">
+          ${esc(title)} <span style="color:${accent};">·</span> ${count}
+        </mj-text>
+        <mj-divider border-color="${divider}" border-width="1px" padding="0" />
       </mj-column>
     </mj-section>
   `;
 }
 
-/**
- * Build one card row. Two top-level columns (poster + content), both share the card bg color.
- * Section padding gives the outer gap; columns stack to 100% width on screens < 480px.
- */
-function itemCard(opts: {
+function itemRow(opts: {
   title: string;
   subtitle?: string;
   meta?: string;
   summary?: string;
   posterSrc?: string;
-  posterWidth?: number;
+  isLast?: boolean;
+  posterDisplayPx?: number;
 }): string {
-  const { card, text, muted } = COLORS;
-  const { title, subtitle, meta, summary, posterSrc, posterWidth = 200 } = opts;
+  const { text, textSoft, muted, divider } = COLORS;
+  const { title, subtitle, meta, summary, posterSrc, isLast, posterDisplayPx = 100 } = opts;
 
   const posterCol = posterSrc
-    ? `
-      <mj-column width="33%" background-color="${card}" padding="0" vertical-align="middle" css-class="card-poster-wrap">
-        <mj-image src="${esc(posterSrc)}" alt="${esc(title)}" width="${posterWidth}px" padding="0" align="center" />
-      </mj-column>
-    `
+    ? `<mj-column width="${posterDisplayPx + 24}px" padding="0" vertical-align="top" css-class="item-poster">
+         <mj-image src="${esc(posterSrc)}" alt="${esc(title)}" width="${posterDisplayPx}px" padding="0" align="left" border-radius="4px" />
+       </mj-column>`
     : '';
-  const contentWidth = posterSrc ? '67%' : '100%';
+  const contentWidth = posterSrc ? `${640 - 64 - posterDisplayPx - 24}px` : '100%';
 
-  const titleHtml = `<mj-text color="${text}" font-size="16px" font-weight="700" line-height="1.3" padding="0">${esc(title)}${meta ? ` <span style="color:${muted}; font-weight:500;">· ${esc(meta)}</span>` : ''}</mj-text>`;
-  const subtitleHtml = subtitle
-    ? `<mj-text color="${muted}" font-size="12px" font-weight="600" letter-spacing="1px" text-transform="uppercase" padding="2px 0 0 0">${esc(subtitle)}</mj-text>`
+  const subtitleLine = subtitle
+    ? `<mj-text color="${muted}" font-size="11px" font-weight="600" letter-spacing="1.4px" text-transform="uppercase" padding="0 0 6px 0">${esc(subtitle)}</mj-text>`
     : '';
-  const summaryHtml = summary
-    ? `<mj-text color="${muted}" font-size="13px" line-height="1.55" padding="8px 0 0 0">${esc(shortSummary(summary, 260))}</mj-text>`
+  const titleLine = `<mj-text color="${text}" font-size="17px" font-weight="700" line-height="1.3" letter-spacing="-0.01em" padding="0">${esc(title)}${meta ? ` <span style="color:${muted}; font-weight:500;">${esc(meta)}</span>` : ''}</mj-text>`;
+  const summaryLine = summary
+    ? `<mj-text color="${textSoft}" font-size="13.5px" line-height="1.6" padding="8px 0 0 0">${esc(shortSummary(summary, 110))}</mj-text>`
+    : '';
+
+  const dividerSection = !isLast
+    ? `<mj-section background-color="${COLORS.bg}" padding="22px 32px 0 32px">
+         <mj-column>
+           <mj-divider border-color="${divider}" border-width="1px" padding="0" />
+         </mj-column>
+       </mj-section>`
     : '';
 
   return `
-    <mj-section background-color="${COLORS.bg}" padding="6px 16px">
+    <mj-section background-color="${COLORS.bg}" padding="22px 32px 0 32px">
       ${posterCol}
-      <mj-column width="${contentWidth}" background-color="${card}" padding="14px 16px" vertical-align="middle" css-class="card-content">
-        ${titleHtml}
-        ${subtitleHtml}
-        ${summaryHtml}
+      <mj-column width="${contentWidth}" padding="0" vertical-align="top">
+        ${subtitleLine}
+        ${titleLine}
+        ${summaryLine}
       </mj-column>
     </mj-section>
+    ${dividerSection}
   `;
 }
 
-function renderItemList(heading: string, items: RenderedItem[], accent: string): string {
-  const blocks: string[] = [sectionTitle(`${heading} (${items.length})`, accent)];
-  for (const item of items) {
+function renderItemList(heading: string, items: RenderedItem[], accent: string, opts: { showSummaries: boolean }): string {
+  const blocks: string[] = [sectionHeader(heading, items.length, accent)];
+  items.forEach((item, i) => {
     blocks.push(
-      itemCard({
+      itemRow({
         title: item.title,
         meta: item.year,
         subtitle: item.subtitle,
-        summary: item.summary,
+        summary: opts.showSummaries ? item.summary : undefined,
         posterSrc: item.posterSrc,
-        posterWidth: 200
+        isLast: i === items.length - 1
       })
     );
-  }
+  });
   return blocks.join('\n');
 }
 
 function renderShows(shows: RenderedShow[], accent: string): string {
   const epCount = shows.reduce((n, s) => n + s.episodes.length, 0);
-  const blocks: string[] = [sectionTitle(`New TV (${epCount} episode${epCount === 1 ? '' : 's'})`, accent)];
-  const { card, text, muted, divider } = COLORS;
+  const blocks: string[] = [sectionHeader('New TV', epCount, accent)];
+  const { text, textSoft, muted, divider } = COLORS;
 
-  for (const show of shows) {
-    const episodeBlocks = show.episodes
+  shows.forEach((show, showIdx) => {
+    const isLastShow = showIdx === shows.length - 1;
+
+    // Compact episode list — small label in accent, title in muted body color, no summaries.
+    const episodeRows = show.episodes
       .map((ep, i) => {
-        const dividerEl =
-          i > 0
-            ? `<mj-divider border-color="${divider}" border-width="1px" padding="14px 0 12px 0" />`
-            : '';
-        const summaryEl = ep.summary
-          ? `<mj-text color="${muted}" font-size="13px" line-height="1.55" padding="6px 0 0 0">${esc(shortSummary(ep.summary, 200))}</mj-text>`
-          : '';
+        const top = i === 0 ? '' : `border-top:1px solid ${divider};`;
         return `
-          ${dividerEl}
-          <mj-text color="${accent}" font-size="11px" font-weight="700" letter-spacing="1px" line-height="1.4" padding="0">${esc(ep.label)}</mj-text>
-          <mj-text color="${text}" font-size="14px" font-weight="600" line-height="1.4" padding="3px 0 0 0">${esc(ep.title)}</mj-text>
-          ${summaryEl}
+          <tr>
+            <td style="padding:8px 14px 8px 0; vertical-align:top; ${top} width:64px; white-space:nowrap;">
+              <span style="color:${accent}; font-size:11px; font-weight:700; letter-spacing:1px; font-family:Inter,sans-serif;">${esc(ep.label)}</span>
+            </td>
+            <td style="padding:8px 0; vertical-align:top; ${top}">
+              <span style="color:${textSoft}; font-size:13.5px; font-weight:500; line-height:1.5; font-family:Inter,sans-serif;">${esc(ep.title)}</span>
+            </td>
+          </tr>
         `;
       })
       .join('');
 
     const posterCol = show.posterSrc
-      ? `
-        <mj-column width="33%" background-color="${card}" padding="0" vertical-align="top" css-class="card-poster-wrap">
-          <mj-image src="${esc(show.posterSrc)}" alt="${esc(show.title)}" width="200px" padding="0" align="center" />
-        </mj-column>
-      `
+      ? `<mj-column width="124px" padding="0" vertical-align="top" css-class="item-poster">
+           <mj-image src="${esc(show.posterSrc)}" alt="${esc(show.title)}" width="100px" padding="0" align="left" border-radius="4px" />
+         </mj-column>`
       : '';
-    const contentWidth = show.posterSrc ? '67%' : '100%';
+    const contentWidth = show.posterSrc ? '452px' : '100%';
 
     blocks.push(`
-      <mj-section background-color="${COLORS.bg}" padding="6px 16px">
+      <mj-section background-color="${COLORS.bg}" padding="22px 32px 0 32px">
         ${posterCol}
-        <mj-column width="${contentWidth}" background-color="${card}" padding="16px 18px" vertical-align="top" css-class="card-content">
-          <mj-text color="${text}" font-size="17px" font-weight="700" padding="0 0 12px 0" line-height="1.25">${esc(show.title)}</mj-text>
-          ${episodeBlocks}
+        <mj-column width="${contentWidth}" padding="0" vertical-align="top">
+          <mj-text color="${muted}" font-size="11px" font-weight="600" letter-spacing="1.4px" text-transform="uppercase" padding="0 0 6px 0">${esc(show.episodes.length === 1 ? '1 episode' : `${show.episodes.length} episodes`)}</mj-text>
+          <mj-text color="${text}" font-size="17px" font-weight="700" line-height="1.3" letter-spacing="-0.01em" padding="0 0 10px 0">${esc(show.title)}</mj-text>
+          <mj-raw>
+            <table role="presentation" class="show-episodes-table" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; border-collapse:collapse;">
+              ${episodeRows}
+            </table>
+          </mj-raw>
         </mj-column>
       </mj-section>
+      ${
+        !isLastShow
+          ? `<mj-section background-color="${COLORS.bg}" padding="22px 32px 0 32px">
+               <mj-column>
+                 <mj-divider border-color="${divider}" border-width="1px" padding="0" />
+               </mj-column>
+             </mj-section>`
+          : ''
+      }
     `);
-  }
+  });
+
   return blocks.join('\n');
 }
 
 function renderStatBlock(title: string, rows: RenderedStatRow[], accent: string): string {
-  const { card, text, muted, divider } = COLORS;
+  const { text, muted, divider } = COLORS;
   const items = rows
     .slice(0, 5)
     .map(
       (r, i) => `
         <tr>
-          <td style="padding:10px 12px; vertical-align:middle; ${i === 0 ? '' : `border-top:1px solid ${divider};`}">
+          <td style="padding:12px 0; vertical-align:middle; ${i === 0 ? '' : `border-top:1px solid ${divider};`}">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td width="28" style="color:${accent}; font-size:18px; font-weight:700; vertical-align:middle; width:28px;">${i + 1}</td>
+                <td width="32" style="color:${muted}; font-size:13px; font-weight:600; vertical-align:middle; width:32px; font-variant-numeric:tabular-nums;">${i + 1}</td>
                 ${
                   r.posterSrc
-                    ? `<td width="48" style="vertical-align:middle; width:48px; padding-right:10px;"><img src="${esc(r.posterSrc)}" width="40" height="40" style="border-radius:4px; object-fit:cover; display:block; width:40px; height:40px;" alt="" /></td>`
+                    ? `<td width="44" style="vertical-align:middle; width:44px; padding-right:12px;"><img src="${esc(r.posterSrc)}" width="36" height="36" style="border-radius:4px; object-fit:cover; display:block; width:36px; height:36px;" alt="" /></td>`
                     : ''
                 }
                 <td style="vertical-align:middle;">
-                  <div style="color:${text}; font-size:14px; font-weight:600;">${esc(r.label)}</div>
-                  <div style="color:${muted}; font-size:12px; padding-top:2px;">${esc(r.detail)}</div>
+                  <div style="color:${text}; font-size:14px; font-weight:600; letter-spacing:-0.005em;">${esc(r.label)}</div>
                 </td>
+                <td style="vertical-align:middle; text-align:right; color:${muted}; font-size:12px; font-variant-numeric:tabular-nums; white-space:nowrap; padding-left:12px;">${esc(r.detail)}</td>
               </tr>
             </table>
           </td>
@@ -332,11 +360,11 @@ function renderStatBlock(title: string, rows: RenderedStatRow[], accent: string)
     )
     .join('');
   return `
-    ${sectionTitle(title, accent)}
-    <mj-section background-color="${COLORS.bg}" padding="6px 16px">
-      <mj-column background-color="${card}" padding="6px 0">
+    ${sectionHeader(title, rows.length, accent)}
+    <mj-section background-color="${COLORS.bg}" padding="6px 32px 0 32px">
+      <mj-column padding="0">
         <mj-raw>
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; border-collapse:collapse;">
             ${items}
           </table>
         </mj-raw>
@@ -346,17 +374,24 @@ function renderStatBlock(title: string, rows: RenderedStatRow[], accent: string)
 }
 
 function renderStats(stats: { totalPlays: number; totalDuration: string; windowDays: number }, accent: string): string {
-  const { card, muted } = COLORS;
+  const { muted, divider } = COLORS;
   return `
-    ${sectionTitle(`Last ${stats.windowDays} Days`, accent)}
-    <mj-section background-color="${COLORS.bg}" padding="6px 16px">
-      <mj-column background-color="${card}" padding="22px 16px" width="50%">
-        <mj-text align="center" color="${accent}" font-size="32px" font-weight="700" padding="0">${stats.totalPlays.toLocaleString()}</mj-text>
-        <mj-text align="center" color="${muted}" font-size="11px" letter-spacing="2px" font-weight="700" text-transform="uppercase" padding="6px 0 0 0">Total Plays</mj-text>
+    <mj-section background-color="${COLORS.bg}" padding="40px 32px 0 32px">
+      <mj-column>
+        <mj-text font-size="10.5px" letter-spacing="2.5px" font-weight="700" text-transform="uppercase" color="${muted}" padding="0 0 14px 0">
+          Last ${stats.windowDays} Days
+        </mj-text>
+        <mj-divider border-color="${divider}" border-width="1px" padding="0" />
       </mj-column>
-      <mj-column background-color="${card}" padding="22px 16px" width="50%">
-        <mj-text align="center" color="${accent}" font-size="32px" font-weight="700" padding="0">${esc(stats.totalDuration)}</mj-text>
-        <mj-text align="center" color="${muted}" font-size="11px" letter-spacing="2px" font-weight="700" text-transform="uppercase" padding="6px 0 0 0">Watched</mj-text>
+    </mj-section>
+    <mj-section background-color="${COLORS.bg}" padding="22px 32px 0 32px">
+      <mj-column padding="0" width="50%">
+        <mj-text align="left" color="${accent}" font-size="34px" font-weight="700" letter-spacing="-0.02em" padding="0" css-class="stat-number">${stats.totalPlays.toLocaleString()}</mj-text>
+        <mj-text align="left" color="${muted}" font-size="11px" letter-spacing="2px" font-weight="700" text-transform="uppercase" padding="4px 0 0 0">Total Plays</mj-text>
+      </mj-column>
+      <mj-column padding="0" width="50%">
+        <mj-text align="left" color="${accent}" font-size="34px" font-weight="700" letter-spacing="-0.02em" padding="0" css-class="stat-number">${esc(stats.totalDuration)}</mj-text>
+        <mj-text align="left" color="${muted}" font-size="11px" letter-spacing="2px" font-weight="700" text-transform="uppercase" padding="4px 0 0 0">Watched</mj-text>
       </mj-column>
     </mj-section>
   `;
