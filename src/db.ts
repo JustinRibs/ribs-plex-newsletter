@@ -72,7 +72,7 @@ const DEFAULTS: Settings = {
   tautulli_url: '',
   tautulli_api_key: '',
 
-  smtp_host: 'smtp-relay.brevo.com',
+  smtp_host: '',
   smtp_port: 587,
   smtp_secure: 0,
   smtp_user: '',

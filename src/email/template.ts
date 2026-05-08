@@ -78,7 +78,7 @@ function shortSummary(s: string | undefined, max = 110): string {
 export function buildMjml(data: TemplateData): string {
   const { settings, movies, shows, music, topMovies, topTV, topUsers, stats, generatedDate, logoSrc, includeUnsubscribe } = data;
   const accent = settings.brand_accent || '#e5a00d';
-  const brandName = esc(settings.brand_name || 'Plex Newsletter');
+  const brandName = esc(settings.brand_name || 'Pivo');
   const headerHtml = settings.brand_header_html || '';
   const footerHtml = settings.brand_footer_html || '';
   const showSummaries = !!settings.show_summaries;

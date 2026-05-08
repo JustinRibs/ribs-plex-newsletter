@@ -135,7 +135,7 @@ function buildBroadcastMjml(opts: {
 }): string {
   const { settings, bodyHtml, generatedDate, logoSrc, includeUnsubscribe } = opts;
   const accent = settings.brand_accent || '#e5a00d';
-  const brandName = esc(settings.brand_name || 'Plex Newsletter');
+  const brandName = esc(settings.brand_name || 'Pivo');
   const footerHtml = settings.brand_footer_html || '';
   const { bg, text, muted, divider } = COLORS;
 

@@ -142,9 +142,13 @@
 
         <section id="section-smtp" class="card">
           <h2>Email (SMTP)</h2>
+          <p class="hint">
+            Pivo works with any SMTP provider — Postmark, Brevo, Mailgun, SendGrid, Amazon SES, or your own self-hosted relay.
+            Grab the host + port + credentials from your provider's dashboard.
+          </p>
           <div class="row">
             <label>SMTP host
-              <input data-field="smtp_host" type="text" placeholder="smtp-relay.brevo.com" />
+              <input data-field="smtp_host" type="text" placeholder="smtp.your-provider.com" />
             </label>
             <label>SMTP port
               <input data-field="smtp_port" type="number" placeholder="587" />
@@ -158,7 +162,7 @@
           </div>
           <div class="row">
             <label>Username
-              <input data-field="smtp_user" type="text" placeholder="your-brevo-username" />
+              <input data-field="smtp_user" type="text" placeholder="api or your SMTP login" />
             </label>
             <label>Password
               <input data-field="smtp_pass" type="password" placeholder="leave blank to keep current" />
@@ -176,7 +180,7 @@
             <button class="btn" id="test-smtp-btn">Test SMTP</button>
             <span id="test-smtp-status" class="hint"></span>
           </div>
-          <p class="hint">For best deliverability, set up SPF, DKIM, and DMARC records on your sending domain in Brevo.</p>
+          <p class="hint">For best deliverability, set up <strong>SPF</strong>, <strong>DKIM</strong>, and <strong>DMARC</strong> DNS records on your sending domain in your SMTP provider's dashboard. Without these, Gmail and Yahoo will route your emails to spam.</p>
 
           <h3>Public URL (for unsubscribe links)</h3>
           <div class="row single">
