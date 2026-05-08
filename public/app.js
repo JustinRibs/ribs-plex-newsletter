@@ -123,7 +123,7 @@ async function loadRecipients() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${escapeHtml(r.email)}</td>
-      <td>${escapeHtml(r.name || '')}</td>
+      <td><input class="inline-edit" type="text" value="${escapeHtml(r.name || '')}" placeholder="—" data-name-id="${r.id}" data-original="${escapeHtml(r.name || '')}" /></td>
       <td><label class="checkbox" style="margin:0;"><input type="checkbox" data-active="${r.id}" ${r.active ? 'checked' : ''}/><span></span></label></td>
       <td class="row-actions"><button class="btn btn-danger" data-delete="${r.id}">Delete</button></td>
     `;
@@ -440,6 +440,44 @@ function bindActions() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ active: cb.checked })
       });
+    }
+  });
+
+  // Inline-edit the recipient name: save on blur (when changed) or Enter
+  async function saveNameEdit(input) {
+    const id = input.dataset.nameId;
+    const original = input.dataset.original ?? '';
+    const next = input.value.trim();
+    if (next === original) return;
+    input.classList.add('saving');
+    try {
+      const updated = await api(`/api/recipients/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: next })
+      });
+      input.dataset.original = updated.name || '';
+      input.value = updated.name || '';
+      input.classList.remove('saving');
+      input.classList.add('saved');
+      setTimeout(() => input.classList.remove('saved'), 1200);
+    } catch (err) {
+      input.classList.remove('saving');
+      input.classList.add('error');
+      input.value = original;
+      setTimeout(() => input.classList.remove('error'), 1500);
+    }
+  }
+  $('#recipients-table').addEventListener('blur', (e) => {
+    if (e.target.matches('[data-name-id]')) saveNameEdit(e.target);
+  }, true);
+  $('#recipients-table').addEventListener('keydown', (e) => {
+    if (e.target.matches('[data-name-id]') && e.key === 'Enter') {
+      e.preventDefault();
+      e.target.blur();
+    } else if (e.target.matches('[data-name-id]') && e.key === 'Escape') {
+      e.target.value = e.target.dataset.original ?? '';
+      e.target.blur();
     }
   });
 }
