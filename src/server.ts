@@ -48,7 +48,7 @@ if (ADMIN_PASSWORD) {
     const auth = req.headers.authorization || '';
     const expected = 'Basic ' + Buffer.from(`admin:${ADMIN_PASSWORD}`).toString('base64');
     if (auth !== expected) {
-      reply.header('WWW-Authenticate', 'Basic realm="ribs-newsletter"').code(401).send('Auth required');
+      reply.header('WWW-Authenticate', 'Basic realm="pivo"').code(401).send('Auth required');
     }
   });
 }
@@ -454,7 +454,7 @@ fastify.post<{ Querystring: { token?: string } }>('/unsubscribe', unsubscribeHan
 
 reloadScheduler();
 fastify.listen({ host: '0.0.0.0', port: PORT }).then(() => {
-  console.log(`ribs-newsletter listening on http://0.0.0.0:${PORT}`);
+  console.log(`pivo listening on http://0.0.0.0:${PORT}`);
 });
 
 // --- helpers ---

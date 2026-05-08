@@ -1,7 +1,7 @@
 {
-  "name": "ribs-newsletter",
+  "name": "pivo",
   "version": "0.1.0",
-  "description": "Self-hosted Plex newsletter — pulls from Tautulli, sends a beautifully designed email on a schedule.",
+  "description": "Pivo — a self-hosted Plex newsletter. Pulls from Tautulli, sends a beautifully designed email on a schedule.",
   "private": true,
   "type": "module",
   "main": "dist/server.js",

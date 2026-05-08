@@ -107,7 +107,7 @@ const DEFAULTS: Settings = {
   cloudinary_cloud_name: '',
   cloudinary_api_key: '',
   cloudinary_api_secret: '',
-  cloudinary_folder: 'ribs-newsletter'
+  cloudinary_folder: 'pivo'
 };
 
 // Seed defaults for any missing key

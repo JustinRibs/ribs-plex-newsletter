@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE: dockerjustin98/ribs-newsletter
+  IMAGE: dockerjustin98/pivo
 
 jobs:
   build:

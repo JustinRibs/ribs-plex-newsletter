@@ -20,7 +20,7 @@ export function cloudinaryConfigFromSettings(s: Settings): CloudinaryConfig | nu
     cloud_name: s.cloudinary_cloud_name,
     api_key: s.cloudinary_api_key,
     api_secret: s.cloudinary_api_secret,
-    folder: (s.cloudinary_folder || 'ribs-newsletter').replace(/^\/+|\/+$/g, '') || 'ribs-newsletter'
+    folder: (s.cloudinary_folder || 'pivo').replace(/^\/+|\/+$/g, '') || 'pivo'
   };
 }
 

@@ -1,9 +1,9 @@
 services:
-  ribs-newsletter:
-    image: dockerjustin98/ribs-newsletter:latest
+  pivo:
+    image: dockerjustin98/pivo:latest
     # For local development, comment out `image:` above and uncomment `build:` below.
     # build: .
-    container_name: ribs-newsletter
+    container_name: pivo
     restart: unless-stopped
     ports:
       - "1998:1998"

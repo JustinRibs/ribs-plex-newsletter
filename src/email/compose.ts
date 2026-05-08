@@ -24,7 +24,7 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
   const tautulli = new TautulliClient(settings.tautulli_url, settings.tautulli_api_key);
   const attachments: Attachment[] = [];
   let cidCounter = 0;
-  const nextCid = () => `img${++cidCounter}@ribs-newsletter`;
+  const nextCid = () => `img${++cidCounter}@pivo`;
   const cloudinary = cloudinaryConfigFromSettings(settings);
 
   function attachAsCid(filenameHint: string, bytes: Buffer, contentType: string): string {

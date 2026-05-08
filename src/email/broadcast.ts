@@ -75,7 +75,7 @@ export async function composeBroadcast(settings: Settings, opts: BroadcastOption
             }
           }
           if (!logoSrc) {
-            const cid = `logo@ribs-newsletter`;
+            const cid = `logo@pivo`;
             attachments.push({ filename: path.basename(logoFull), cid, content: bytes, contentType });
             logoSrc = `cid:${cid}`;
           }

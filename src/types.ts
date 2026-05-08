@@ -46,7 +46,7 @@ export interface Settings {
   cloudinary_cloud_name: string;
   cloudinary_api_key: string;
   cloudinary_api_secret: string;
-  cloudinary_folder: string;  // namespacing inside the cloud, e.g. "ribs-newsletter"
+  cloudinary_folder: string;  // namespacing inside the cloud, e.g. "pivo"
 }
 
 export interface Recipient {

@@ -1,6 +1,10 @@
-# ribs-newsletter
+# Pivo
 
-A self-hosted replacement for Tautulli's "Recently Added" newsletter. Pulls recently added media (and optional watch stats) from your Tautulli instance and sends a clean, branded HTML email to your subscribers on whatever schedule you want.
+<img src="public/pivo-logo.svg" alt="Pivo" width="180">
+
+A self-hosted Plex newsletter that actually looks good. Pulls recently added media (and optional watch stats) from your Tautulli instance and sends a clean, branded HTML email to your subscribers on whatever schedule you want.
+
+> **pivo** — Czech for *beer*. Same vibe as the rest of the self-hosted Plex stack (Sonarr, Tautulli, Overseerr): something you set and forget, then enjoy.
 
 ## Features
 
@@ -15,11 +19,11 @@ A self-hosted replacement for Tautulli's "Recently Added" newsletter. Pulls rece
 
 ## Quick start (no clone required)
 
-The image is published to Docker Hub at [`dockerjustin98/ribs-newsletter`](https://hub.docker.com/r/dockerjustin98/ribs-newsletter), built for both `linux/amd64` and `linux/arm64` (so it runs on Synology, Raspberry Pi, M-series Macs, and standard Linux servers).
+The image is published to Docker Hub at [`dockerjustin98/pivo`](https://hub.docker.com/r/dockerjustin98/pivo), built for both `linux/amd64` and `linux/arm64` (so it runs on Synology, Raspberry Pi, M-series Macs, and standard Linux servers).
 
 ```bash
-mkdir ribs-plex-newsletter && cd ribs-plex-newsletter
-curl -O https://raw.githubusercontent.com/JustinRibs/ribs-plex-newsletter/main/docker-compose.yml
+mkdir pivo && cd pivo
+curl -O https://raw.githubusercontent.com/JustinRibs/pivo/main/docker-compose.yml
 docker compose up -d
 ```
 
@@ -53,8 +57,8 @@ docker compose pull && docker compose up -d
 ## Build from source
 
 ```bash
-git clone https://github.com/JustinRibs/ribs-plex-newsletter.git
-cd ribs-plex-newsletter
+git clone https://github.com/JustinRibs/pivo.git
+cd pivo
 cp .env.example .env
 # edit docker-compose.yml: comment out `image:` and uncomment `build: .`
 docker compose up -d --build
@@ -119,8 +123,8 @@ docker compose up -d
 ### Schedule never fires
 
 - Confirm the container is up: `docker compose ps`
-- Check `TZ` matches what you expect — cron is interpreted in the container's timezone (`docker compose exec ribs-newsletter date`)
-- Watch the live logs while you wait for the next fire: `docker compose logs -f ribs-newsletter`
+- Check `TZ` matches what you expect — cron is interpreted in the container's timezone (`docker compose exec pivo date`)
+- Watch the live logs while you wait for the next fire: `docker compose logs -f pivo`
 
 The scheduler intentionally does **not** run a "missed" send if the container was down at the scheduled time — it just waits for the next one.
 
