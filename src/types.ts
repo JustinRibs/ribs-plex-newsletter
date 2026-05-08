@@ -65,6 +65,8 @@ export interface SendLog {
   status: 'success' | 'partial' | 'failed';
   message: string;
   duration_ms: number;
+  kind: 'newsletter' | 'broadcast';
+  subject: string;
 }
 
 export interface RecentlyAddedItem {

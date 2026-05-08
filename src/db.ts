@@ -28,7 +28,9 @@ CREATE TABLE IF NOT EXISTS send_log (
   recipient_count INTEGER NOT NULL,
   status          TEXT NOT NULL,
   message         TEXT NOT NULL DEFAULT '',
-  duration_ms     INTEGER NOT NULL DEFAULT 0
+  duration_ms     INTEGER NOT NULL DEFAULT 0,
+  kind            TEXT NOT NULL DEFAULT 'newsletter',
+  subject         TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS cloudinary_uploads (
@@ -43,6 +45,14 @@ CREATE TABLE IF NOT EXISTS cloudinary_uploads (
 const recipientCols = db.prepare("PRAGMA table_info(recipients)").all() as { name: string }[];
 if (!recipientCols.some((c) => c.name === 'unsubscribe_token')) {
   db.exec("ALTER TABLE recipients ADD COLUMN unsubscribe_token TEXT NOT NULL DEFAULT ''");
+}
+// Add send_log kind/subject for distinguishing broadcasts from newsletters
+const sendLogCols = db.prepare("PRAGMA table_info(send_log)").all() as { name: string }[];
+if (!sendLogCols.some((c) => c.name === 'kind')) {
+  db.exec("ALTER TABLE send_log ADD COLUMN kind TEXT NOT NULL DEFAULT 'newsletter'");
+}
+if (!sendLogCols.some((c) => c.name === 'subject')) {
+  db.exec("ALTER TABLE send_log ADD COLUMN subject TEXT NOT NULL DEFAULT ''");
 }
 // Backfill tokens for any rows missing one
 const missingTokens = db.prepare("SELECT id FROM recipients WHERE unsubscribe_token = ''").all() as { id: number }[];
@@ -199,8 +209,8 @@ export function deleteRecipient(id: number): boolean {
 
 export function logSend(entry: Omit<SendLog, 'id' | 'sent_at'>): void {
   db.prepare(
-    'INSERT INTO send_log (recipient_count, status, message, duration_ms) VALUES (?, ?, ?, ?)'
-  ).run(entry.recipient_count, entry.status, entry.message, entry.duration_ms);
+    'INSERT INTO send_log (recipient_count, status, message, duration_ms, kind, subject) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run(entry.recipient_count, entry.status, entry.message, entry.duration_ms, entry.kind || 'newsletter', entry.subject || '');
   // keep only the last 100 entries
   db.exec(
     "DELETE FROM send_log WHERE id NOT IN (SELECT id FROM send_log ORDER BY sent_at DESC LIMIT 100)"

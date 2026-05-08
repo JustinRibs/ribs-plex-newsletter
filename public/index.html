@@ -28,6 +28,7 @@
           <a href="#section-schedule" class="nav-link" data-target="section-schedule">Schedule</a>
           <a href="#section-recipients" class="nav-link" data-target="section-recipients">Recipients</a>
           <a href="#section-preview" class="nav-link" data-target="section-preview">Preview &amp; Send</a>
+          <a href="#section-compose" class="nav-link" data-target="section-compose">Compose</a>
           <a href="#section-history" class="nav-link" data-target="section-history">History</a>
         </nav>
         <div class="sidebar-footer">
@@ -315,16 +316,82 @@
           <iframe id="preview-frame" title="Newsletter preview"></iframe>
         </section>
 
+        <section id="section-compose" class="card">
+          <h2>Compose · One-off email</h2>
+          <p class="hint">
+            Send a spontaneous email to all or some of your recipients. Same branding shell as the newsletter
+            (logo header + footer + unsubscribe). Drop in any HTML — placeholders work just like the newsletter.
+          </p>
+
+          <div class="row single">
+            <label>Subject
+              <input id="bc-subject" type="text" placeholder="Hey {{first_name}}, server maintenance Friday" />
+            </label>
+          </div>
+
+          <div class="row single">
+            <label>HTML body
+              <textarea id="bc-body" rows="14" placeholder="<h2>Heads up, {{first_name}}</h2>
+<p>The Plex server will be down Friday from 8–10pm for maintenance.</p>
+<p>Catch up on <em>For All Mankind</em> ahead of time. <a href='https://app.plex.tv'>Open Plex</a></p>"></textarea>
+            </label>
+          </div>
+          <p class="hint">
+            Placeholders: <code>{{first_name}}</code>, <code>{{name}}</code>, <code>{{email}}</code>, <code>{{unsubscribe_url}}</code>.
+            Tags like <code>&lt;h1&gt;</code>–<code>&lt;h3&gt;</code>, <code>&lt;p&gt;</code>, <code>&lt;ul&gt;</code>/<code>&lt;ol&gt;</code>,
+            <code>&lt;a&gt;</code>, <code>&lt;blockquote&gt;</code>, <code>&lt;hr&gt;</code>, and <code>&lt;img&gt;</code> are styled to match.
+          </p>
+
+          <div class="row">
+            <label class="checkbox">
+              <input id="bc-wrap" type="checkbox" checked />
+              <span>Wrap with branding (header + footer + unsubscribe)</span>
+            </label>
+          </div>
+
+          <h3>Recipients</h3>
+          <div class="row single">
+            <label class="checkbox">
+              <input type="radio" name="bc-rcpt-mode" id="bc-mode-all" value="all" checked />
+              <span>All active recipients (<span id="bc-active-count">…</span>)</span>
+            </label>
+            <label class="checkbox">
+              <input type="radio" name="bc-rcpt-mode" id="bc-mode-some" value="some" />
+              <span>Pick specific recipients</span>
+            </label>
+          </div>
+
+          <div id="bc-picker" class="bc-picker" hidden>
+            <div class="bc-picker-toolbar">
+              <input id="bc-picker-search" type="text" placeholder="Filter by name or email…" />
+              <button class="btn btn-ghost" type="button" id="bc-picker-all">All</button>
+              <button class="btn btn-ghost" type="button" id="bc-picker-none">None</button>
+              <span class="hint" id="bc-picker-count">0 selected</span>
+            </div>
+            <div id="bc-picker-list"></div>
+          </div>
+
+          <div class="actions">
+            <button class="btn" id="bc-preview-btn" type="button">Refresh preview</button>
+            <input id="bc-test-email" type="email" placeholder="you@example.com" />
+            <button class="btn" id="bc-test-btn" type="button">Send test to me</button>
+            <button class="btn btn-primary" id="bc-send-btn" type="button">Send broadcast</button>
+          </div>
+          <span id="bc-status" class="hint"></span>
+          <iframe id="bc-preview-frame" title="Broadcast preview"></iframe>
+        </section>
+
         <section id="section-history" class="card">
           <h2>History</h2>
           <table class="table" id="history-table">
             <thead>
               <tr>
                 <th>When</th>
+                <th>Type</th>
+                <th>Subject</th>
                 <th>Recipients</th>
                 <th>Status</th>
                 <th>Duration</th>
-                <th>Message</th>
               </tr>
             </thead>
             <tbody></tbody>

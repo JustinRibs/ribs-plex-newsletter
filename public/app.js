@@ -171,6 +171,7 @@ function renderSkippedImports(skipped) {
         row.classList.add('done');
         addBtn.textContent = 'Added';
         await loadRecipients();
+      await loadBroadcastRecipients();
       } catch (err) {
         addBtn.disabled = false;
         addBtn.textContent = 'Add';
@@ -189,19 +190,23 @@ async function loadHistory() {
   const log = await api('/api/sendlog');
   if (log.length === 0) {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td colspan="5" class="muted" style="text-align:center;padding:24px;">No sends yet.</td>`;
+    tr.innerHTML = `<td colspan="6" class="muted" style="text-align:center;padding:24px;">No sends yet.</td>`;
     tbody.appendChild(tr);
     return;
   }
   for (const r of log) {
+    const kind = r.kind || 'newsletter';
+    const subject = r.subject || (kind === 'broadcast' ? '(no subject)' : 'Newsletter');
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${new Date(r.sent_at + 'Z').toLocaleString()}</td>
+      <td><span class="kind-pill ${kind}">${escapeHtml(kind)}</span></td>
+      <td>${escapeHtml(subject)}</td>
       <td>${r.recipient_count}</td>
       <td class="status-${r.status}">${r.status}</td>
       <td>${(r.duration_ms / 1000).toFixed(1)}s</td>
-      <td class="muted">${escapeHtml(r.message || '')}</td>
     `;
+    tr.title = r.message || '';
     tbody.appendChild(tr);
   }
 }
@@ -413,6 +418,7 @@ function bindActions() {
       status.className = `hint ${r.imported > 0 ? 'success' : ''}`;
       renderSkippedImports(r.skippedNoEmailList || []);
       await loadRecipients();
+      await loadBroadcastRecipients();
     } catch (err) {
       status.textContent = `Import failed: ${err.message}`;
       status.className = 'hint error';
@@ -504,15 +510,210 @@ function setStatus(sel, text, kind = '') {
   el.className = `hint ${kind}`;
 }
 
+// --- Compose / broadcast section --------------------------------------------
+
+const broadcastState = {
+  recipients: [],         // [{id, email, name, active}]
+  selected: new Set(),    // Set<id>
+  filter: ''
+};
+
+function getBroadcastBody() {
+  const wrap = $('#bc-wrap');
+  const wrapWithBranding = wrap ? !!wrap.checked : true;
+  return {
+    subject: ($('#bc-subject').value || '').trim(),
+    body_html: $('#bc-body').value || '',
+    wrap_with_branding: wrapWithBranding
+  };
+}
+
+function getBroadcastMode() {
+  return document.querySelector('input[name="bc-rcpt-mode"]:checked')?.value || 'all';
+}
+
+function selectedBroadcastRecipientIds() {
+  return Array.from(broadcastState.selected);
+}
+
+function renderBroadcastPicker() {
+  const list = $('#bc-picker-list');
+  list.innerHTML = '';
+  const filter = broadcastState.filter.toLowerCase();
+  const filtered = broadcastState.recipients.filter((r) => {
+    if (!filter) return true;
+    return (r.email || '').toLowerCase().includes(filter) || (r.name || '').toLowerCase().includes(filter);
+  });
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="bc-picker-empty">${broadcastState.recipients.length === 0 ? 'No recipients yet — add some in the Recipients tab.' : 'No matches.'}</div>`;
+    updatePickerCount();
+    return;
+  }
+
+  for (const r of filtered) {
+    const row = document.createElement('label');
+    row.className = `bc-picker-row${r.active ? '' : ' inactive'}`;
+    const checked = broadcastState.selected.has(r.id) ? 'checked' : '';
+    row.innerHTML = `
+      <input type="checkbox" ${checked} data-bc-rcpt="${r.id}" />
+      <div class="bc-picker-meta">
+        <strong>${escapeHtml(r.name || r.email)}</strong>
+        <span class="bc-picker-email">${escapeHtml(r.email)}${r.active ? '' : ' · inactive'}</span>
+      </div>
+    `;
+    const cb = row.querySelector('input');
+    cb.addEventListener('change', () => {
+      if (cb.checked) broadcastState.selected.add(r.id);
+      else broadcastState.selected.delete(r.id);
+      updatePickerCount();
+    });
+    list.appendChild(row);
+  }
+  updatePickerCount();
+}
+
+function updatePickerCount() {
+  const el = $('#bc-picker-count');
+  if (el) el.textContent = `${broadcastState.selected.size} selected`;
+}
+
+async function loadBroadcastRecipients() {
+  try {
+    broadcastState.recipients = await api('/api/recipients');
+    const activeCount = broadcastState.recipients.filter((r) => r.active).length;
+    const el = $('#bc-active-count');
+    if (el) el.textContent = activeCount.toString();
+    renderBroadcastPicker();
+  } catch (err) {
+    console.error('Failed to load broadcast recipients', err);
+  }
+}
+
+async function broadcastPreview() {
+  const status = $('#bc-status');
+  const frame = $('#bc-preview-frame');
+  const body = getBroadcastBody();
+  if (!body.body_html.trim()) {
+    setStatus('#bc-status', 'Add some HTML to preview.', 'error');
+    return;
+  }
+  setStatus('#bc-status', 'Rendering preview…');
+  try {
+    const res = await fetch('/api/broadcast/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      throw new Error(j.error || `${res.status} ${res.statusText}`);
+    }
+    const html = await res.text();
+    const blob = new Blob([html], { type: 'text/html' });
+    if (frame.dataset.url) URL.revokeObjectURL(frame.dataset.url);
+    const url = URL.createObjectURL(blob);
+    frame.dataset.url = url;
+    frame.src = url;
+    setStatus('#bc-status', 'Preview updated.', 'success');
+  } catch (err) {
+    setStatus('#bc-status', `Preview failed: ${err.message}`, 'error');
+  }
+}
+
+async function broadcastSendTest() {
+  const email = ($('#bc-test-email').value || '').trim();
+  if (!email) { alert('Enter an email first.'); return; }
+  const body = getBroadcastBody();
+  if (!body.subject) { setStatus('#bc-status', 'Subject is required.', 'error'); return; }
+  if (!body.body_html.trim()) { setStatus('#bc-status', 'Body cannot be empty.', 'error'); return; }
+  setStatus('#bc-status', `Sending test to ${email}…`);
+  try {
+    const r = await api('/api/broadcast/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...body, test_email: email })
+    });
+    setStatus('#bc-status', r.ok ? `Test sent to ${email} (${r.durationMs}ms)` : `Failed: ${(r.errors || []).join('; ')}`, r.ok ? 'success' : 'error');
+  } catch (err) {
+    setStatus('#bc-status', `Test failed: ${err.message}`, 'error');
+  }
+}
+
+async function broadcastSend() {
+  const body = getBroadcastBody();
+  if (!body.subject) { setStatus('#bc-status', 'Subject is required.', 'error'); return; }
+  if (!body.body_html.trim()) { setStatus('#bc-status', 'Body cannot be empty.', 'error'); return; }
+
+  const mode = getBroadcastMode();
+  let recipient_ids;
+  let recipientCount;
+  if (mode === 'all') {
+    recipientCount = broadcastState.recipients.filter((r) => r.active).length;
+    recipient_ids = undefined;
+  } else {
+    recipient_ids = selectedBroadcastRecipientIds();
+    recipientCount = recipient_ids.length;
+  }
+  if (recipientCount === 0) { setStatus('#bc-status', 'No recipients selected.', 'error'); return; }
+  if (!confirm(`Send this broadcast to ${recipientCount} recipient${recipientCount === 1 ? '' : 's'}?`)) return;
+
+  setStatus('#bc-status', `Sending to ${recipientCount}…`);
+  try {
+    const r = await api('/api/broadcast/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...body, recipient_ids })
+    });
+    setStatus(
+      '#bc-status',
+      r.ok ? `Sent to ${r.sent} recipient${r.sent === 1 ? '' : 's'} (${r.durationMs}ms)` : `Sent ${r.sent}, failed ${r.failed}: ${(r.errors || []).slice(0, 2).join('; ')}`,
+      r.ok ? 'success' : 'error'
+    );
+    loadHistory();
+  } catch (err) {
+    setStatus('#bc-status', `Send failed: ${err.message}`, 'error');
+  }
+}
+
+function bindBroadcastActions() {
+  $('#bc-preview-btn').addEventListener('click', broadcastPreview);
+  $('#bc-test-btn').addEventListener('click', broadcastSendTest);
+  $('#bc-send-btn').addEventListener('click', broadcastSend);
+
+  for (const radio of document.querySelectorAll('input[name="bc-rcpt-mode"]')) {
+    radio.addEventListener('change', () => {
+      const mode = getBroadcastMode();
+      $('#bc-picker').hidden = mode !== 'some';
+      if (mode === 'some') loadBroadcastRecipients();
+    });
+  }
+
+  $('#bc-picker-search').addEventListener('input', (e) => {
+    broadcastState.filter = e.target.value;
+    renderBroadcastPicker();
+  });
+  $('#bc-picker-all').addEventListener('click', () => {
+    for (const r of broadcastState.recipients) broadcastState.selected.add(r.id);
+    renderBroadcastPicker();
+  });
+  $('#bc-picker-none').addEventListener('click', () => {
+    broadcastState.selected.clear();
+    renderBroadcastPicker();
+  });
+}
+
 (async function init() {
   bindNav();
   bindFieldHandlers();
   bindActions();
+  bindBroadcastActions();
   try {
     const s = await api('/api/settings');
     applySettings(s);
     await loadSchedule();
     await loadRecipients();
+    await loadBroadcastRecipients();
     await loadHistory();
     refreshPreview();
   } catch (err) {

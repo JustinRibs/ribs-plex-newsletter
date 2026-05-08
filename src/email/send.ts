@@ -153,7 +153,7 @@ export async function runNewsletter(opts: { dryRun?: boolean; testRecipient?: st
 
   if (recipients.length === 0) {
     const dur = Date.now() - start;
-    if (!opts.dryRun) logSend({ recipient_count: 0, status: 'failed', message: 'No active recipients', duration_ms: dur });
+    if (!opts.dryRun) logSend({ recipient_count: 0, status: 'failed', message: 'No active recipients', duration_ms: dur, kind: 'newsletter', subject: composed.subject });
     return { sent: 0, failed: 0, errors: ['No active recipients'], recipientCount: 0, durationMs: dur };
   }
 
@@ -173,7 +173,7 @@ export async function runNewsletter(opts: { dryRun?: boolean; testRecipient?: st
 
   // Don't log "test" sends as part of the regular history if it was a single test recipient.
   if (!opts.testRecipient) {
-    logSend({ recipient_count: recipients.length, status, message, duration_ms: durationMs });
+    logSend({ recipient_count: recipients.length, status, message, duration_ms: durationMs, kind: 'newsletter', subject: composed.subject });
   }
 
   return { ...result, recipientCount: recipients.length, durationMs };

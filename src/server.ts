@@ -13,13 +13,16 @@ import {
   getSettings,
   importRecipient,
   listRecipients,
+  listActiveRecipients,
   listSendLog,
+  logSend,
   updateRecipient,
   updateSettings
 } from './db.js';
 import { TautulliClient } from './tautulli.js';
 import { composeNewsletter } from './email/compose.js';
-import { applySubstitutions, buildPreviewUnsubscribeUrl, PREVIEW_TOKEN, runNewsletter, verifySmtp } from './email/send.js';
+import { composeBroadcast } from './email/broadcast.js';
+import { applySubstitutions, buildPreviewUnsubscribeUrl, PREVIEW_TOKEN, runNewsletter, sendComposed, verifySmtp, type SendableRecipient } from './email/send.js';
 import { getScheduleStatus, reloadScheduler } from './scheduler.js';
 import type { Settings } from './types.js';
 
@@ -297,6 +300,117 @@ fastify.post('/api/send-now', async (_req, reply) => {
 
 fastify.get('/api/schedule', async () => getScheduleStatus());
 fastify.get('/api/sendlog', async () => listSendLog(50));
+
+// --- Broadcast (one-off email) ---------------------------------------------
+
+interface BroadcastBody {
+  subject: string;
+  body_html: string;
+  recipient_ids?: number[];   // when omitted/empty → all active recipients
+  test_email?: string;        // when set → single test send (overrides recipient_ids)
+  wrap_with_branding?: boolean;
+}
+
+function buildBroadcastRecipients(body: BroadcastBody): { recipients: SendableRecipient[]; isTest: boolean; missing?: string } {
+  if (body.test_email) {
+    if (!/^.+@.+\..+$/.test(body.test_email.trim())) {
+      return { recipients: [], isTest: true, missing: 'Invalid test email' };
+    }
+    return { recipients: [{ email: body.test_email.trim() }], isTest: true };
+  }
+
+  if (body.recipient_ids && body.recipient_ids.length > 0) {
+    const all = listRecipients();
+    const byId = new Map(all.map((r) => [r.id, r]));
+    const recipients = body.recipient_ids
+      .map((id) => byId.get(id))
+      .filter((r): r is NonNullable<typeof r> => !!r)
+      .map((r) => ({ email: r.email, name: r.name, unsubscribe_token: r.unsubscribe_token }));
+    return { recipients, isTest: false };
+  }
+
+  // Default: all active recipients
+  const recipients = listActiveRecipients().map((r) => ({
+    email: r.email,
+    name: r.name,
+    unsubscribe_token: r.unsubscribe_token
+  }));
+  return { recipients, isTest: false };
+}
+
+fastify.post<{ Body: BroadcastBody }>('/api/broadcast/preview', async (req, reply) => {
+  const { subject = '', body_html = '', wrap_with_branding } = req.body || ({} as BroadcastBody);
+  if (!body_html.trim()) {
+    return reply.code(400).send({ error: 'Body cannot be empty' });
+  }
+  const settings = getSettings();
+  try {
+    const composed = await composeBroadcast(settings, {
+      subject: subject || '(no subject)',
+      bodyHtml: body_html,
+      wrapWithBranding: wrap_with_branding !== false
+    });
+    const previewCtx = {
+      unsubscribeUrl: buildPreviewUnsubscribeUrl(settings.public_url),
+      name: 'Alex',
+      email: 'preview@example.com'
+    };
+    const html = applySubstitutions(composed.html, previewCtx);
+    // Rewrite any cid: references (logo) to data URIs so the iframe can render them
+    const dataUriHtml = html.replace(/cid:([^"'\s)>]+)/g, (_m, cid) => {
+      const a = composed.attachments.find((x) => x.cid === cid);
+      return a ? `data:${a.contentType};base64,${a.content.toString('base64')}` : '';
+    });
+    reply.header('Content-Type', 'text/html; charset=utf-8').send(dataUriHtml);
+  } catch (err: any) {
+    reply.code(500).header('Content-Type', 'text/html; charset=utf-8').send(
+      `<pre style="padding:24px; font-family: monospace; color: #f87171;">${escapeHtml(err?.message || String(err))}</pre>`
+    );
+  }
+});
+
+fastify.post<{ Body: BroadcastBody }>('/api/broadcast/send', async (req, reply) => {
+  const { subject = '', body_html = '', wrap_with_branding } = req.body || ({} as BroadcastBody);
+  if (!subject.trim()) return reply.code(400).send({ error: 'Subject is required' });
+  if (!body_html.trim()) return reply.code(400).send({ error: 'Body cannot be empty' });
+
+  const { recipients, isTest, missing } = buildBroadcastRecipients(req.body);
+  if (missing) return reply.code(400).send({ error: missing });
+  if (recipients.length === 0) return reply.code(400).send({ error: 'No recipients selected' });
+
+  const start = Date.now();
+  const settings = getSettings();
+  try {
+    const composed = await composeBroadcast(settings, {
+      subject,
+      bodyHtml: body_html,
+      wrapWithBranding: wrap_with_branding !== false
+    });
+    const result = await sendComposed(settings, composed, recipients);
+    const durationMs = Date.now() - start;
+    const status: 'success' | 'partial' | 'failed' =
+      result.failed === 0 ? 'success' : result.sent === 0 ? 'failed' : 'partial';
+    const message =
+      result.errors.length > 0
+        ? `${result.sent} sent / ${result.failed} failed. ${result.errors.slice(0, 3).join('; ')}`
+        : `${result.sent} sent`;
+
+    if (!isTest) {
+      logSend({
+        recipient_count: recipients.length,
+        status,
+        message,
+        duration_ms: durationMs,
+        kind: 'broadcast',
+        subject
+      });
+    }
+
+    return { ok: result.failed === 0, ...result, recipientCount: recipients.length, durationMs, isTest };
+  } catch (err: any) {
+    return reply.code(500).send({ error: err?.message || 'Send failed' });
+  }
+});
 
 // --- Public unsubscribe (no auth) ------------------------------------------
 
