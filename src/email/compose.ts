@@ -3,6 +3,8 @@ import path from 'node:path';
 import mjml2html from 'mjml';
 import { TautulliClient, formatDuration } from '../tautulli.js';
 import { UPLOADS_DIR } from '../config.js';
+import { lookupCloudinaryUrl } from '../db.js';
+import { buildPublicId, cloudinaryConfigFromSettings, uploadImageBuffer, type CloudinaryConfig } from '../cloudinary.js';
 import type { ComposedNewsletter, RecentlyAddedItem, Settings } from '../types.js';
 import { buildMjml, UNSUBSCRIBE_PLACEHOLDER, type RenderedItem, type RenderedShow, type RenderedStatRow, type TemplateData } from './template.js';
 
@@ -23,20 +25,59 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
   const attachments: Attachment[] = [];
   let cidCounter = 0;
   const nextCid = () => `img${++cidCounter}@ribs-newsletter`;
+  const cloudinary = cloudinaryConfigFromSettings(settings);
 
-  async function attachImage(img: string, filenameHint: string, width = 400): Promise<string | undefined> {
-    if (opts.skipImages || !img) return undefined;
-    const fetched = await tautulli.fetchImage(img, { width });
-    if (!fetched) return undefined;
+  function attachAsCid(filenameHint: string, bytes: Buffer, contentType: string): string {
     const cid = nextCid();
-    const ext = fetched.contentType.includes('png') ? 'png' : 'jpg';
+    const ext = contentType.includes('png') ? 'png' : 'jpg';
     attachments.push({
       filename: `${filenameHint}.${ext}`.replace(/[^a-zA-Z0-9._-]/g, '_'),
       cid,
-      content: fetched.bytes,
-      contentType: fetched.contentType
+      content: bytes,
+      contentType
     });
-    return cid;
+    return `cid:${cid}`;
+  }
+
+  /**
+   * Resolve a Tautulli `thumb` reference to a final `src=` value for the email.
+   * Returns a Cloudinary https URL when image hosting is configured (so the
+   * email doesn't ship the bytes), otherwise falls back to a CID attachment.
+   * On Cloudinary errors we still attach the bytes — better a heavier email
+   * than a broken poster.
+   */
+  async function resolveImage(img: string, filenameHint: string, width = 400): Promise<string | undefined> {
+    if (opts.skipImages || !img) return undefined;
+
+    if (cloudinary) {
+      const publicId = buildPublicId(cloudinary.folder, filenameHint, img);
+      const url = await uploadFromTautulli(cloudinary, publicId, img, width);
+      if (url) return url;
+      // fall through to CID on upload failure
+    }
+
+    const fetched = await tautulli.fetchImage(img, { width });
+    if (!fetched) return undefined;
+    return attachAsCid(filenameHint, fetched.bytes, fetched.contentType);
+  }
+
+  async function uploadFromTautulli(
+    cfg: CloudinaryConfig,
+    publicId: string,
+    img: string,
+    width: number
+  ): Promise<string | undefined> {
+    try {
+      // Skip the Tautulli round-trip on cache hits.
+      const cached = lookupCloudinaryUrl(publicId);
+      if (cached) return cached;
+      const fetched = await tautulli.fetchImage(img, { width });
+      if (!fetched) return undefined;
+      return await uploadImageBuffer(cfg, fetched.bytes, publicId, fetched.contentType);
+    } catch (err) {
+      console.warn(`Cloudinary upload failed for ${publicId}, falling back to CID:`, err);
+      return undefined;
+    }
   }
 
   // Determine "recently added" window: pull more than the cap, then filter by toggles client-side
@@ -51,12 +92,12 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
   if (settings.include_movies) {
     const movieItems = all.filter((i) => i.media_type === 'movie').slice(0, settings.recently_added_count);
     for (const m of movieItems) {
-      const posterCid = m.thumb ? await attachImage(m.thumb, `movie-${m.rating_key}`, 400) : undefined;
+      const posterSrc = m.thumb ? await resolveImage(m.thumb, `movie-${m.rating_key}`, 400) : undefined;
       movies.push({
         title: m.title,
         year: m.year ? String(m.year) : undefined,
         summary: settings.show_summaries ? m.summary : undefined,
-        posterCid
+        posterSrc
       });
     }
   }
@@ -73,7 +114,7 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
 
     for (const [showName, eps] of grouped) {
       const showThumb = eps[0].grandparent_thumb || eps[0].parent_thumb;
-      const posterCid = showThumb ? await attachImage(showThumb, `show-${eps[0].grandparent_rating_key || eps[0].rating_key}`, 320) : undefined;
+      const posterSrc = showThumb ? await resolveImage(showThumb, `show-${eps[0].grandparent_rating_key || eps[0].rating_key}`, 320) : undefined;
       const renderedEps = eps
         .sort((a, b) => Number(a.parent_title || '0') - Number(b.parent_title || '0') || (a.title || '').localeCompare(b.title || ''))
         .map((ep) => {
@@ -88,20 +129,20 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
             summary: settings.show_summaries ? ep.summary : undefined
           };
         });
-      shows.push({ title: showName, posterCid, episodes: renderedEps });
+      shows.push({ title: showName, posterSrc, episodes: renderedEps });
     }
   }
 
   if (settings.include_music) {
     const albumItems = all.filter((i) => i.media_type === 'album').slice(0, settings.recently_added_count);
     for (const a of albumItems) {
-      const posterCid = a.thumb ? await attachImage(a.thumb, `album-${a.rating_key}`, 320) : undefined;
+      const posterSrc = a.thumb ? await resolveImage(a.thumb, `album-${a.rating_key}`, 320) : undefined;
       music.push({
         title: a.title,
         subtitle: a.parent_title,
         year: a.year ? String(a.year) : undefined,
         summary: settings.show_summaries ? a.summary : undefined,
-        posterCid
+        posterSrc
       });
     }
   }
@@ -122,11 +163,11 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
         if (tm) {
           topMovies = [];
           for (const r of (tm.rows || []).slice(0, 5)) {
-            const cid = r.thumb ? await attachImage(r.thumb, `top-movie-${r.rating_key}`, 200) : undefined;
+            const posterSrc = r.thumb ? await resolveImage(r.thumb, `top-movie-${r.rating_key}`, 200) : undefined;
             topMovies.push({
               label: r.title || '—',
               detail: `${r.total_plays || 0} play${r.total_plays === 1 ? '' : 's'}`,
-              posterCid: cid
+              posterSrc
             });
           }
         }
@@ -134,11 +175,11 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
         if (tt) {
           topTV = [];
           for (const r of (tt.rows || []).slice(0, 5)) {
-            const cid = r.thumb ? await attachImage(r.thumb, `top-tv-${r.rating_key}`, 200) : undefined;
+            const posterSrc = r.thumb ? await resolveImage(r.thumb, `top-tv-${r.rating_key}`, 200) : undefined;
             topTV.push({
               label: r.title || '—',
               detail: `${r.total_plays || 0} play${r.total_plays === 1 ? '' : 's'}`,
-              posterCid: cid
+              posterSrc
             });
           }
         }
@@ -149,11 +190,11 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
         if (tu) {
           topUsers = [];
           for (const r of (tu.rows || []).slice(0, 5)) {
-            const cid = r.user_thumb ? await attachImage(r.user_thumb, `user-${r.user_id}`, 80) : undefined;
+            const posterSrc = r.user_thumb ? await resolveImage(r.user_thumb, `user-${r.user_id}`, 80) : undefined;
             topUsers.push({
               label: r.user || `User ${r.user_id}`,
               detail: `${r.total_plays || 0} play${r.total_plays === 1 ? '' : 's'}`,
-              posterCid: cid
+              posterSrc
             });
           }
         }
@@ -177,16 +218,28 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
     }
   }
 
-  // Optional logo attachment
-  let logoCid: string | undefined;
+  // Optional logo. Hosted on Cloudinary when configured, otherwise CID-attached.
+  let logoSrc: string | undefined;
   if (settings.brand_logo_path) {
     const logoFull = path.join(UPLOADS_DIR, path.basename(settings.brand_logo_path));
     if (fs.existsSync(logoFull)) {
       try {
         const bytes = fs.readFileSync(logoFull);
         const ct = guessContentType(logoFull);
-        logoCid = nextCid();
-        attachments.push({ filename: path.basename(logoFull), cid: logoCid, content: bytes, contentType: ct });
+        if (cloudinary) {
+          // The mtime makes the public_id change when the user re-uploads a logo
+          // with the same filename, so the new image actually shows up.
+          const mtime = fs.statSync(logoFull).mtimeMs;
+          const publicId = buildPublicId(cloudinary.folder, `logo-${path.basename(logoFull)}`, `${logoFull}@${mtime}`);
+          try {
+            logoSrc = await uploadImageBuffer(cloudinary, bytes, publicId, ct);
+          } catch (err) {
+            console.warn('Cloudinary logo upload failed, falling back to CID:', err);
+          }
+        }
+        if (!logoSrc) {
+          logoSrc = attachAsCid(`logo-${path.basename(logoFull, path.extname(logoFull))}`, bytes, ct);
+        }
       } catch (err) {
         console.warn('Failed to attach logo:', err);
       }
@@ -212,7 +265,7 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
     topUsers,
     stats,
     generatedDate,
-    logoCid,
+    logoSrc,
     includeUnsubscribe
   };
 

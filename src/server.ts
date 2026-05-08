@@ -54,14 +54,19 @@ if (ADMIN_PASSWORD) {
 
 fastify.get('/api/settings', async () => {
   const s = getSettings();
-  // Don't leak the SMTP password in clear; show whether one is set
-  return { ...s, smtp_pass: s.smtp_pass ? '__set__' : '' };
+  // Don't leak secrets in clear; show whether they're set
+  return {
+    ...s,
+    smtp_pass: s.smtp_pass ? '__set__' : '',
+    cloudinary_api_secret: s.cloudinary_api_secret ? '__set__' : ''
+  };
 });
 
 fastify.put<{ Body: Partial<Settings> }>('/api/settings', async (req) => {
   const body = req.body || {};
-  // If the password is the masked sentinel, drop it so we don't overwrite
+  // If a masked sentinel comes back from the form, drop it so we don't overwrite
   if ((body as any).smtp_pass === '__set__') delete (body as any).smtp_pass;
+  if ((body as any).cloudinary_api_secret === '__set__') delete (body as any).cloudinary_api_secret;
 
   // Coerce booleans -> 0/1 for sqlite
   const numericKeys: (keyof Settings)[] = [
@@ -76,7 +81,8 @@ fastify.put<{ Body: Partial<Settings> }>('/api/settings', async (req) => {
     'enable_top_users',
     'enable_stats',
     'stats_window_days',
-    'schedule_enabled'
+    'schedule_enabled',
+    'cloudinary_enabled'
   ];
   for (const k of numericKeys) {
     if (k in body) {
@@ -86,7 +92,11 @@ fastify.put<{ Body: Partial<Settings> }>('/api/settings', async (req) => {
 
   const next = updateSettings(body);
   reloadScheduler();
-  return { ...next, smtp_pass: next.smtp_pass ? '__set__' : '' };
+  return {
+    ...next,
+    smtp_pass: next.smtp_pass ? '__set__' : '',
+    cloudinary_api_secret: next.cloudinary_api_secret ? '__set__' : ''
+  };
 });
 
 // --- Recipients -------------------------------------------------------------

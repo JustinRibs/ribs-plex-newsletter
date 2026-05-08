@@ -22,6 +22,7 @@
         <nav>
           <a href="#section-branding" class="nav-link active" data-target="section-branding">Branding</a>
           <a href="#section-tautulli" class="nav-link" data-target="section-tautulli">Tautulli</a>
+          <a href="#section-images" class="nav-link" data-target="section-images">Image hosting</a>
           <a href="#section-smtp" class="nav-link" data-target="section-smtp">Email (SMTP)</a>
           <a href="#section-content" class="nav-link" data-target="section-content">Content</a>
           <a href="#section-schedule" class="nav-link" data-target="section-schedule">Schedule</a>
@@ -98,6 +99,43 @@
             <span id="test-tautulli-status" class="hint"></span>
           </div>
           <p class="hint">The container needs to reach Tautulli over the network. Posters are fetched server-side and embedded in the email, so recipients don't need direct access.</p>
+        </section>
+
+        <section id="section-images" class="card">
+          <h2>Image hosting</h2>
+          <p class="hint">
+            By default, posters are attached to each email as inline (CID) images. Most clients render them inline,
+            but Apple Mail, iOS Mail, and Outlook also list ~30 of them as <em>attachments</em>.
+            Hosting posters on <a href="https://cloudinary.com/" target="_blank" rel="noreferrer">Cloudinary</a>
+            (free tier is plenty) keeps the email lightweight — each poster is uploaded once,
+            cached, and embedded as a regular <code>&lt;img src="https://…"&gt;</code>.
+          </p>
+          <div class="row">
+            <label class="checkbox">
+              <input data-field="cloudinary_enabled" type="checkbox" />
+              <span>Use Cloudinary to host poster images</span>
+            </label>
+          </div>
+          <div class="row">
+            <label>Cloud name
+              <input data-field="cloudinary_cloud_name" type="text" placeholder="dxxxxxxxx" />
+            </label>
+            <label>Folder
+              <input data-field="cloudinary_folder" type="text" placeholder="ribs-newsletter" />
+            </label>
+          </div>
+          <div class="row">
+            <label>API key
+              <input data-field="cloudinary_api_key" type="text" placeholder="123456789012345" />
+            </label>
+            <label>API secret
+              <input data-field="cloudinary_api_secret" type="password" placeholder="leave blank to keep current" />
+            </label>
+          </div>
+          <p class="hint">
+            Find these in Cloudinary under <strong>Settings → API Keys</strong>.
+            Posters are deduplicated by Plex <code>rating_key</code> + thumb version, so each poster is only uploaded once.
+          </p>
         </section>
 
         <section id="section-smtp" class="card">
