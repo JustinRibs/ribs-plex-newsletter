@@ -30,6 +30,12 @@ CREATE TABLE IF NOT EXISTS send_log (
   message         TEXT NOT NULL DEFAULT '',
   duration_ms     INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS cloudinary_uploads (
+  public_id   TEXT PRIMARY KEY,
+  url         TEXT NOT NULL,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
 `);
 
 // --- Migrations -------------------------------------------------------------
@@ -85,7 +91,13 @@ const DEFAULTS: Settings = {
   schedule_enabled: 0,
   newsletter_subject: 'New on Plex — {{date}}',
 
-  public_url: ''
+  public_url: '',
+
+  cloudinary_enabled: 0,
+  cloudinary_cloud_name: '',
+  cloudinary_api_key: '',
+  cloudinary_api_secret: '',
+  cloudinary_folder: 'ribs-newsletter'
 };
 
 // Seed defaults for any missing key
@@ -197,4 +209,24 @@ export function logSend(entry: Omit<SendLog, 'id' | 'sent_at'>): void {
 
 export function listSendLog(limit = 25): SendLog[] {
   return db.prepare('SELECT * FROM send_log ORDER BY sent_at DESC LIMIT ?').all(limit) as SendLog[];
+}
+
+// --- Cloudinary upload cache ------------------------------------------------
+// Posters very rarely change once a Plex item is added, so once we've uploaded a
+// given (rating_key + thumb-version) pair we can reuse the public URL forever.
+// The public_id encodes the version, so a re-grabbed poster forces a fresh row.
+
+const cloudinaryLookupStmt = db.prepare('SELECT url FROM cloudinary_uploads WHERE public_id = ?');
+const cloudinarySaveStmt = db.prepare(
+  "INSERT INTO cloudinary_uploads (public_id, url) VALUES (?, ?)" +
+    " ON CONFLICT(public_id) DO UPDATE SET url = excluded.url, created_at = datetime('now')"
+);
+
+export function lookupCloudinaryUrl(publicId: string): string | undefined {
+  const row = cloudinaryLookupStmt.get(publicId) as { url: string } | undefined;
+  return row?.url;
+}
+
+export function saveCloudinaryUrl(publicId: string, url: string): void {
+  cloudinarySaveStmt.run(publicId, url);
 }

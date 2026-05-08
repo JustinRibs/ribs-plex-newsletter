@@ -11,7 +11,11 @@ export interface TemplateData {
   topUsers?: RenderedStatRow[];
   stats?: { totalPlays: number; totalDuration: string; windowDays: number };
   generatedDate: string;
-  logoCid?: string;
+  /**
+   * Final `src=` value for the brand logo. Either a `cid:…` reference (when
+   * attached inline) or a public https URL (when hosted on Cloudinary).
+   */
+  logoSrc?: string;
   /** When true, the footer renders an Unsubscribe link with the {{UNSUBSCRIBE_URL}} placeholder. */
   includeUnsubscribe?: boolean;
 }
@@ -19,25 +23,30 @@ export interface TemplateData {
 /** Placeholder string the sender substitutes per-recipient. */
 export const UNSUBSCRIBE_PLACEHOLDER = '{{UNSUBSCRIBE_URL}}';
 
+/**
+ * `posterSrc` is a ready-to-render `src=` value: either `cid:img1@…` (inline
+ * attachment) or `https://…` (when Cloudinary hosting is enabled). The
+ * template emits it as-is — see compose.ts for how it's chosen.
+ */
 export interface RenderedItem {
   title: string;
   subtitle?: string;
   summary?: string;
-  posterCid?: string;
+  posterSrc?: string;
   badge?: string;
   year?: string;
 }
 
 export interface RenderedShow {
   title: string;
-  posterCid?: string;
+  posterSrc?: string;
   episodes: { label: string; title: string; summary?: string }[];
 }
 
 export interface RenderedStatRow {
   label: string;
   detail: string;
-  posterCid?: string;
+  posterSrc?: string;
 }
 
 const COLORS = {
@@ -66,15 +75,15 @@ function shortSummary(s: string | undefined, max = 220): string {
 }
 
 export function buildMjml(data: TemplateData): string {
-  const { settings, movies, shows, music, topMovies, topTV, topUsers, stats, generatedDate, logoCid, includeUnsubscribe } = data;
+  const { settings, movies, shows, music, topMovies, topTV, topUsers, stats, generatedDate, logoSrc, includeUnsubscribe } = data;
   const accent = settings.brand_accent || '#e5a00d';
   const brandName = esc(settings.brand_name || 'Plex Newsletter');
   const headerHtml = settings.brand_header_html || '';
   const footerHtml = settings.brand_footer_html || '';
   const { bg, card, text, muted, divider } = COLORS;
 
-  const logoBlock = logoCid
-    ? `<mj-image src="cid:${esc(logoCid)}" alt="${brandName}" width="160px" align="center" padding="0" />`
+  const logoBlock = logoSrc
+    ? `<mj-image src="${esc(logoSrc)}" alt="${brandName}" width="160px" align="center" padding="0" />`
     : `<mj-text align="center" font-size="26px" font-weight="700" color="${text}" padding="0">${brandName}</mj-text>`;
 
   const headerSection = `
@@ -197,20 +206,20 @@ function itemCard(opts: {
   subtitle?: string;
   meta?: string;
   summary?: string;
-  posterCid?: string;
+  posterSrc?: string;
   posterWidth?: number;
 }): string {
   const { card, text, muted } = COLORS;
-  const { title, subtitle, meta, summary, posterCid, posterWidth = 200 } = opts;
+  const { title, subtitle, meta, summary, posterSrc, posterWidth = 200 } = opts;
 
-  const posterCol = posterCid
+  const posterCol = posterSrc
     ? `
       <mj-column width="33%" background-color="${card}" padding="0" vertical-align="middle" css-class="card-poster-wrap">
-        <mj-image src="cid:${esc(posterCid)}" alt="${esc(title)}" width="${posterWidth}px" padding="0" align="center" />
+        <mj-image src="${esc(posterSrc)}" alt="${esc(title)}" width="${posterWidth}px" padding="0" align="center" />
       </mj-column>
     `
     : '';
-  const contentWidth = posterCid ? '67%' : '100%';
+  const contentWidth = posterSrc ? '67%' : '100%';
 
   const titleHtml = `<mj-text color="${text}" font-size="16px" font-weight="700" line-height="1.3" padding="0">${esc(title)}${meta ? ` <span style="color:${muted}; font-weight:500;">· ${esc(meta)}</span>` : ''}</mj-text>`;
   const subtitleHtml = subtitle
@@ -241,7 +250,7 @@ function renderItemList(heading: string, items: RenderedItem[], accent: string):
         meta: item.year,
         subtitle: item.subtitle,
         summary: item.summary,
-        posterCid: item.posterCid,
+        posterSrc: item.posterSrc,
         posterWidth: 200
       })
     );
@@ -273,14 +282,14 @@ function renderShows(shows: RenderedShow[], accent: string): string {
       })
       .join('');
 
-    const posterCol = show.posterCid
+    const posterCol = show.posterSrc
       ? `
         <mj-column width="33%" background-color="${card}" padding="0" vertical-align="top" css-class="card-poster-wrap">
-          <mj-image src="cid:${esc(show.posterCid)}" alt="${esc(show.title)}" width="200px" padding="0" align="center" />
+          <mj-image src="${esc(show.posterSrc)}" alt="${esc(show.title)}" width="200px" padding="0" align="center" />
         </mj-column>
       `
       : '';
-    const contentWidth = show.posterCid ? '67%' : '100%';
+    const contentWidth = show.posterSrc ? '67%' : '100%';
 
     blocks.push(`
       <mj-section background-color="${COLORS.bg}" padding="6px 16px">
@@ -307,8 +316,8 @@ function renderStatBlock(title: string, rows: RenderedStatRow[], accent: string)
               <tr>
                 <td width="28" style="color:${accent}; font-size:18px; font-weight:700; vertical-align:middle; width:28px;">${i + 1}</td>
                 ${
-                  r.posterCid
-                    ? `<td width="48" style="vertical-align:middle; width:48px; padding-right:10px;"><img src="cid:${esc(r.posterCid)}" width="40" height="40" style="border-radius:4px; object-fit:cover; display:block; width:40px; height:40px;" alt="" /></td>`
+                  r.posterSrc
+                    ? `<td width="48" style="vertical-align:middle; width:48px; padding-right:10px;"><img src="${esc(r.posterSrc)}" width="40" height="40" style="border-radius:4px; object-fit:cover; display:block; width:40px; height:40px;" alt="" /></td>`
                     : ''
                 }
                 <td style="vertical-align:middle;">

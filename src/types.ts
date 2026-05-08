@@ -38,6 +38,15 @@ export interface Settings {
 
   // Delivery
   public_url: string;         // base URL the app is reachable at — used to build unsubscribe links
+
+  // Image hosting (Cloudinary). When enabled, posters are uploaded to Cloudinary
+  // once and embedded as plain <img src="https://…"> URLs instead of CID
+  // attachments — so the email no longer ships ~30 inline files.
+  cloudinary_enabled: number; // 0/1
+  cloudinary_cloud_name: string;
+  cloudinary_api_key: string;
+  cloudinary_api_secret: string;
+  cloudinary_folder: string;  // namespacing inside the cloud, e.g. "ribs-newsletter"
 }
 
 export interface Recipient {
@@ -117,5 +126,9 @@ export interface ComposedNewsletter {
   subject: string;
   html: string;
   text: string;
+  /**
+   * Inline CID attachments. When Cloudinary is enabled, posters are hosted there
+   * and this array typically just holds the brand logo (or is empty).
+   */
   attachments: { filename: string; cid: string; content: Buffer; contentType: string }[];
 }

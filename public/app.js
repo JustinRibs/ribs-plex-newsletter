@@ -10,13 +10,13 @@ const NUMERIC_FIELDS = new Set([
   'smtp_secure', 'smtp_port', 'recently_added_count',
   'include_movies', 'include_tv', 'include_music', 'show_summaries',
   'enable_top_watched', 'enable_top_users', 'enable_stats',
-  'stats_window_days', 'schedule_enabled'
+  'stats_window_days', 'schedule_enabled', 'cloudinary_enabled'
 ]);
 
 const BOOL_FIELDS = new Set([
   'smtp_secure', 'include_movies', 'include_tv', 'include_music',
   'show_summaries', 'enable_top_watched', 'enable_top_users',
-  'enable_stats', 'schedule_enabled'
+  'enable_stats', 'schedule_enabled', 'cloudinary_enabled'
 ]);
 
 async function api(path, opts = {}) {
