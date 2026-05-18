@@ -47,6 +47,19 @@ export interface Settings {
   cloudinary_api_key: string;
   cloudinary_api_secret: string;
   cloudinary_folder: string;  // namespacing inside the cloud, e.g. "pivo"
+
+  // Radarr / Sonarr — drives the "Coming Soon" section
+  radarr_enabled: number; // 0/1
+  radarr_url: string;
+  radarr_api_key: string;
+  sonarr_enabled: number; // 0/1
+  sonarr_url: string;
+  sonarr_api_key: string;
+  upcoming_window_days: number;
+  /** Master switch for the Coming Soon section. */
+  enable_upcoming: number; // 0/1
+  /** When 1, the Recently Added sections are hidden whenever Coming Soon has anything to show. */
+  upcoming_replaces_recent: number; // 0/1
 }
 
 export interface Recipient {

@@ -23,6 +23,7 @@
         <nav>
           <a href="#section-branding" class="nav-link active" data-target="section-branding">Branding</a>
           <a href="#section-tautulli" class="nav-link" data-target="section-tautulli">Tautulli</a>
+          <a href="#section-arr" class="nav-link" data-target="section-arr">Radarr / Sonarr</a>
           <a href="#section-images" class="nav-link" data-target="section-images">Image hosting</a>
           <a href="#section-smtp" class="nav-link" data-target="section-smtp">Email (SMTP)</a>
           <a href="#section-content" class="nav-link" data-target="section-content">Content</a>
@@ -101,6 +102,76 @@
             <span id="test-tautulli-status" class="hint"></span>
           </div>
           <p class="hint">The container needs to reach Tautulli over the network. Posters are fetched server-side and embedded in the email, so recipients don't need direct access.</p>
+        </section>
+
+        <section id="section-arr" class="card">
+          <h2>Radarr / Sonarr</h2>
+          <p class="hint">
+            Pull a <strong>Coming Soon</strong> section into the newsletter — upcoming movie releases from Radarr
+            and upcoming episode air dates from Sonarr, over the next
+            <input data-field="upcoming_window_days" type="number" min="1" max="60" style="width:64px; display:inline-block; margin:0 4px;" /> days.
+            Cover art is shown alongside each item. Leave either one disabled if you only run one of them.
+          </p>
+
+          <h3>Coming Soon section</h3>
+          <div class="row">
+            <label class="checkbox">
+              <input data-field="enable_upcoming" type="checkbox" />
+              <span>Show the Coming Soon section in the newsletter</span>
+            </label>
+          </div>
+          <div class="row">
+            <label class="checkbox">
+              <input data-field="upcoming_replaces_recent" type="checkbox" />
+              <span>Replace Recently Added with Coming Soon (when there's anything upcoming)</span>
+            </label>
+          </div>
+          <p class="hint">
+            The master toggle hides the section entirely without losing your Radarr / Sonarr connection details below.
+            With <em>replace</em> on, weeks with upcoming content will swap out the "what got added" sections —
+            and weeks without will quietly fall back to Recently Added.
+          </p>
+
+          <h3>Radarr</h3>
+          <div class="row">
+            <label class="checkbox">
+              <input data-field="radarr_enabled" type="checkbox" />
+              <span>Include upcoming movies from Radarr</span>
+            </label>
+          </div>
+          <div class="row">
+            <label>Radarr URL
+              <input data-field="radarr_url" type="url" placeholder="http://192.168.1.x:7878" />
+            </label>
+            <label>API key
+              <input data-field="radarr_api_key" type="password" placeholder="from Settings → General in Radarr" />
+            </label>
+          </div>
+          <div class="actions">
+            <button class="btn" id="test-radarr-btn">Test connection</button>
+            <span id="test-radarr-status" class="hint"></span>
+          </div>
+
+          <h3>Sonarr</h3>
+          <div class="row">
+            <label class="checkbox">
+              <input data-field="sonarr_enabled" type="checkbox" />
+              <span>Include upcoming episodes from Sonarr</span>
+            </label>
+          </div>
+          <div class="row">
+            <label>Sonarr URL
+              <input data-field="sonarr_url" type="url" placeholder="http://192.168.1.x:8989" />
+            </label>
+            <label>API key
+              <input data-field="sonarr_api_key" type="password" placeholder="from Settings → General in Sonarr" />
+            </label>
+          </div>
+          <div class="actions">
+            <button class="btn" id="test-sonarr-btn">Test connection</button>
+            <span id="test-sonarr-status" class="hint"></span>
+          </div>
+          <p class="hint">Posters are pulled from TMDB / TVDB (publicly hosted), so they embed directly without going through your Radarr/Sonarr instance.</p>
         </section>
 
         <section id="section-images" class="card">

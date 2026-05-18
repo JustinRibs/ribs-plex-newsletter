@@ -10,6 +10,9 @@ export interface TemplateData {
   topTV?: RenderedStatRow[];
   topUsers?: RenderedStatRow[];
   stats?: { totalPlays: number; totalDuration: string; windowDays: number };
+  upcomingMovies?: RenderedUpcomingMovie[];
+  upcomingShows?: RenderedUpcomingShow[];
+  upcomingWindowDays?: number;
   generatedDate: string;
   /**
    * Final `src=` value for the brand logo. Either a `cid:…` reference (when
@@ -49,6 +52,23 @@ export interface RenderedStatRow {
   posterSrc?: string;
 }
 
+export interface RenderedUpcomingMovie {
+  title: string;
+  year?: string;
+  overview?: string;
+  posterSrc?: string;
+  /** Human label like "Fri, May 23". */
+  dateLabel: string;
+  /** "Digital", "Physical", or "Cinemas". */
+  releaseLabel: string;
+}
+
+export interface RenderedUpcomingShow {
+  title: string;
+  posterSrc?: string;
+  episodes: { label: string; title: string; dateLabel: string }[];
+}
+
 const COLORS = {
   bg: '#0e0e10',
   text: '#f5f5f7',
@@ -76,7 +96,7 @@ function shortSummary(s: string | undefined, max = 110): string {
 }
 
 export function buildMjml(data: TemplateData): string {
-  const { settings, movies, shows, music, topMovies, topTV, topUsers, stats, generatedDate, logoSrc, includeUnsubscribe } = data;
+  const { settings, movies, shows, music, topMovies, topTV, topUsers, stats, upcomingMovies, upcomingShows, upcomingWindowDays, generatedDate, logoSrc, includeUnsubscribe } = data;
   const accent = settings.brand_accent || '#e5a00d';
   const brandName = esc(settings.brand_name || 'Pivo');
   const headerHtml = settings.brand_header_html || '';
@@ -117,6 +137,15 @@ export function buildMjml(data: TemplateData): string {
   const topUsersSection =
     topUsers && topUsers.length > 0 ? renderStatBlock('Top Viewers', topUsers, accent) : '';
   const statsSection = stats ? renderStats(stats, accent) : '';
+
+  const upcomingMoviesSection =
+    upcomingMovies && upcomingMovies.length > 0
+      ? renderUpcomingMovies(upcomingMovies, accent, upcomingWindowDays || 7, !!settings.show_summaries)
+      : '';
+  const upcomingShowsSection =
+    upcomingShows && upcomingShows.length > 0
+      ? renderUpcomingShows(upcomingShows, accent, upcomingWindowDays || 7)
+      : '';
 
   const nothingNew = movies.length === 0 && shows.length === 0 && music.length === 0;
   const emptyState = nothingNew
@@ -188,6 +217,8 @@ export function buildMjml(data: TemplateData): string {
     ${movieSections}
     ${showSections}
     ${musicSections}
+    ${upcomingMoviesSection}
+    ${upcomingShowsSection}
     ${footerSection}
   </mj-body>
 </mjml>`;
@@ -395,6 +426,132 @@ function renderStats(stats: { totalPlays: number; totalDuration: string; windowD
       </mj-column>
     </mj-section>
   `;
+}
+
+function upcomingHeader(title: string, count: number, accent: string, windowDays: number): string {
+  const { muted, divider } = COLORS;
+  return `
+    <mj-section background-color="${COLORS.bg}" padding="40px 32px 0 32px">
+      <mj-column>
+        <mj-text font-size="10.5px" letter-spacing="2.5px" font-weight="700" text-transform="uppercase" color="${muted}" padding="0 0 14px 0">
+          ${esc(title)} <span style="color:${accent};">·</span> ${count} <span style="color:${muted}; font-weight:500; letter-spacing:1.2px;">· next ${windowDays} days</span>
+        </mj-text>
+        <mj-divider border-color="${divider}" border-width="1px" padding="0" />
+      </mj-column>
+    </mj-section>
+  `;
+}
+
+function renderUpcomingMovies(
+  items: RenderedUpcomingMovie[],
+  accent: string,
+  windowDays: number,
+  showSummaries: boolean
+): string {
+  const { text, textSoft, muted, divider } = COLORS;
+  const blocks: string[] = [upcomingHeader('Coming Soon · Movies', items.length, accent, windowDays)];
+
+  items.forEach((item, i) => {
+    const isLast = i === items.length - 1;
+    const posterCol = item.posterSrc
+      ? `<mj-column width="124px" padding="0" vertical-align="top" css-class="item-poster">
+           <mj-image src="${esc(item.posterSrc)}" alt="${esc(item.title)}" width="100px" padding="0" align="left" border-radius="4px" />
+         </mj-column>`
+      : '';
+    const contentWidth = item.posterSrc ? '452px' : '100%';
+
+    const datePill = `<span style="display:inline-block; background:${accent}1f; color:${accent}; font-size:10.5px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; padding:4px 9px; border-radius:3px; margin-right:8px;">${esc(item.dateLabel)}</span><span style="color:${muted}; font-size:11px; font-weight:600; letter-spacing:1.4px; text-transform:uppercase;">${esc(item.releaseLabel)}</span>`;
+
+    const titleLine = `<mj-text color="${text}" font-size="17px" font-weight="700" line-height="1.3" letter-spacing="-0.01em" padding="0">${esc(item.title)}${item.year ? ` <span style="color:${muted}; font-weight:500;">${esc(item.year)}</span>` : ''}</mj-text>`;
+    const summaryLine =
+      showSummaries && item.overview
+        ? `<mj-text color="${textSoft}" font-size="13.5px" line-height="1.6" padding="8px 0 0 0">${esc(shortSummary(item.overview, 110))}</mj-text>`
+        : '';
+
+    blocks.push(`
+      <mj-section background-color="${COLORS.bg}" padding="22px 32px 0 32px">
+        ${posterCol}
+        <mj-column width="${contentWidth}" padding="0" vertical-align="top">
+          <mj-text padding="0 0 8px 0" font-size="11px">${datePill}</mj-text>
+          ${titleLine}
+          ${summaryLine}
+        </mj-column>
+      </mj-section>
+      ${
+        !isLast
+          ? `<mj-section background-color="${COLORS.bg}" padding="22px 32px 0 32px">
+               <mj-column>
+                 <mj-divider border-color="${divider}" border-width="1px" padding="0" />
+               </mj-column>
+             </mj-section>`
+          : ''
+      }
+    `);
+  });
+
+  return blocks.join('\n');
+}
+
+function renderUpcomingShows(shows: RenderedUpcomingShow[], accent: string, windowDays: number): string {
+  const { text, textSoft, muted, divider } = COLORS;
+  const epCount = shows.reduce((n, s) => n + s.episodes.length, 0);
+  const blocks: string[] = [upcomingHeader('Coming Soon · TV', epCount, accent, windowDays)];
+
+  shows.forEach((show, showIdx) => {
+    const isLastShow = showIdx === shows.length - 1;
+
+    const episodeRows = show.episodes
+      .map((ep, i) => {
+        const top = i === 0 ? '' : `border-top:1px solid ${divider};`;
+        return `
+          <tr>
+            <td style="padding:8px 14px 8px 0; vertical-align:top; ${top} width:64px; white-space:nowrap;">
+              <span style="color:${accent}; font-size:11px; font-weight:700; letter-spacing:1px; font-family:Inter,sans-serif;">${esc(ep.label)}</span>
+            </td>
+            <td style="padding:8px 12px 8px 0; vertical-align:top; ${top}">
+              <span style="color:${textSoft}; font-size:13.5px; font-weight:500; line-height:1.5; font-family:Inter,sans-serif;">${esc(ep.title)}</span>
+            </td>
+            <td style="padding:8px 0; vertical-align:top; ${top} text-align:right; white-space:nowrap;">
+              <span style="color:${muted}; font-size:11px; font-weight:600; letter-spacing:0.5px; font-family:Inter,sans-serif;">${esc(ep.dateLabel)}</span>
+            </td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const posterCol = show.posterSrc
+      ? `<mj-column width="124px" padding="0" vertical-align="top" css-class="item-poster">
+           <mj-image src="${esc(show.posterSrc)}" alt="${esc(show.title)}" width="100px" padding="0" align="left" border-radius="4px" />
+         </mj-column>`
+      : '';
+    const contentWidth = show.posterSrc ? '452px' : '100%';
+
+    blocks.push(`
+      <mj-section background-color="${COLORS.bg}" padding="22px 32px 0 32px">
+        ${posterCol}
+        <mj-column width="${contentWidth}" padding="0" vertical-align="top">
+          <mj-text color="${muted}" font-size="11px" font-weight="600" letter-spacing="1.4px" text-transform="uppercase" padding="0 0 6px 0">${esc(show.episodes.length === 1 ? '1 episode' : `${show.episodes.length} episodes`)}</mj-text>
+          <mj-text color="${text}" font-size="17px" font-weight="700" line-height="1.3" letter-spacing="-0.01em" padding="0 0 10px 0">${esc(show.title)}</mj-text>
+          <mj-raw>
+            <table role="presentation" class="show-episodes-table" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; border-collapse:collapse;">
+              ${episodeRows}
+            </table>
+          </mj-raw>
+        </mj-column>
+      </mj-section>
+      ${
+        !isLastShow
+          ? `<mj-section background-color="${COLORS.bg}" padding="22px 32px 0 32px">
+               <mj-column>
+                 <mj-divider border-color="${divider}" border-width="1px" padding="0" />
+               </mj-column>
+             </mj-section>`
+          : ''
+      }
+    `);
+  });
+
+  return blocks.join('\n');
 }
 
 export { formatDuration };

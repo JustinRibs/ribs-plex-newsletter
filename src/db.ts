@@ -107,7 +107,17 @@ const DEFAULTS: Settings = {
   cloudinary_cloud_name: '',
   cloudinary_api_key: '',
   cloudinary_api_secret: '',
-  cloudinary_folder: 'pivo'
+  cloudinary_folder: 'pivo',
+
+  radarr_enabled: 0,
+  radarr_url: '',
+  radarr_api_key: '',
+  sonarr_enabled: 0,
+  sonarr_url: '',
+  sonarr_api_key: '',
+  upcoming_window_days: 7,
+  enable_upcoming: 0,
+  upcoming_replaces_recent: 0
 };
 
 // Seed defaults for any missing key

@@ -10,13 +10,17 @@ const NUMERIC_FIELDS = new Set([
   'smtp_secure', 'smtp_port', 'recently_added_count',
   'include_movies', 'include_tv', 'include_music', 'show_summaries',
   'enable_top_watched', 'enable_top_users', 'enable_stats',
-  'stats_window_days', 'schedule_enabled', 'cloudinary_enabled'
+  'stats_window_days', 'schedule_enabled', 'cloudinary_enabled',
+  'radarr_enabled', 'sonarr_enabled', 'upcoming_window_days',
+  'enable_upcoming', 'upcoming_replaces_recent'
 ]);
 
 const BOOL_FIELDS = new Set([
   'smtp_secure', 'include_movies', 'include_tv', 'include_music',
   'show_summaries', 'enable_top_watched', 'enable_top_users',
-  'enable_stats', 'schedule_enabled', 'cloudinary_enabled'
+  'enable_stats', 'schedule_enabled', 'cloudinary_enabled',
+  'radarr_enabled', 'sonarr_enabled',
+  'enable_upcoming', 'upcoming_replaces_recent'
 ]);
 
 async function api(path, opts = {}) {
@@ -333,6 +337,8 @@ function bindActions() {
 
   // Test buttons
   bindTest('#test-tautulli-btn', '#test-tautulli-status', '/api/test/tautulli');
+  bindTest('#test-radarr-btn', '#test-radarr-status', '/api/test/radarr');
+  bindTest('#test-sonarr-btn', '#test-sonarr-status', '/api/test/sonarr');
   bindTest('#test-smtp-btn', '#test-smtp-status', '/api/test/smtp');
 
   $('#test-send-btn').addEventListener('click', async () => {

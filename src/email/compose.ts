@@ -2,11 +2,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import mjml2html from 'mjml';
 import { TautulliClient, formatDuration } from '../tautulli.js';
+import { RadarrClient, SonarrClient, fetchRemoteImage, type UpcomingEpisode } from '../arr.js';
 import { UPLOADS_DIR } from '../config.js';
 import { lookupCloudinaryUrl } from '../db.js';
 import { buildPublicId, cloudinaryConfigFromSettings, uploadImageBuffer, type CloudinaryConfig } from '../cloudinary.js';
 import type { ComposedNewsletter, RecentlyAddedItem, Settings } from '../types.js';
-import { buildMjml, UNSUBSCRIBE_PLACEHOLDER, type RenderedItem, type RenderedShow, type RenderedStatRow, type TemplateData } from './template.js';
+import { buildMjml, UNSUBSCRIBE_PLACEHOLDER, type RenderedItem, type RenderedShow, type RenderedStatRow, type RenderedUpcomingMovie, type RenderedUpcomingShow, type TemplateData } from './template.js';
 
 interface Attachment {
   filename: string;
@@ -61,6 +62,31 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
     return attachAsCid(filenameHint, fetched.bytes, fetched.contentType);
   }
 
+  /**
+   * Resolve a publicly-hosted image URL (TMDB/TVDB poster from Radarr/Sonarr)
+   * for use in the email. When Cloudinary is enabled we upload once and cache;
+   * otherwise we just embed the remote URL directly since these CDNs are public.
+   */
+  async function resolveRemoteImage(remoteUrl: string | undefined, filenameHint: string, width = 200): Promise<string | undefined> {
+    if (opts.skipImages || !remoteUrl) return undefined;
+
+    if (cloudinary) {
+      const publicId = buildPublicId(cloudinary.folder, filenameHint, remoteUrl);
+      try {
+        const cached = lookupCloudinaryUrl(publicId);
+        if (cached) return cached;
+        const fetched = await fetchRemoteImage(remoteUrl);
+        if (!fetched) return remoteUrl;
+        return await uploadImageBuffer(cloudinary, fetched.bytes, publicId, fetched.contentType);
+      } catch (err) {
+        console.warn(`Cloudinary upload failed for ${publicId}, falling back to remote URL:`, err);
+        return remoteUrl;
+      }
+    }
+
+    return remoteUrl;
+  }
+
   async function uploadFromTautulli(
     cfg: CloudinaryConfig,
     publicId: string,
@@ -80,14 +106,85 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
     }
   }
 
-  // Determine "recently added" window: pull more than the cap, then filter by toggles client-side
-  const fetchCount = Math.max(settings.recently_added_count * 2, 20);
-  const all = await tautulli.getRecentlyAdded(fetchCount);
+  // --- Upcoming releases (Radarr / Sonarr) ----------------------------------
+  // Fetched first so we know whether to skip Recently Added in "replace" mode.
+  const upcomingWindowDays = Math.max(1, Math.min(60, Number(settings.upcoming_window_days) || 7));
+  let upcomingMovies: RenderedUpcomingMovie[] | undefined;
+  let upcomingShows: RenderedUpcomingShow[] | undefined;
 
-  // Movies: keep movie items, cap at recently_added_count if include_movies is on
+  if (
+    settings.enable_upcoming &&
+    ((settings.radarr_enabled && settings.radarr_url && settings.radarr_api_key) ||
+      (settings.sonarr_enabled && settings.sonarr_url && settings.sonarr_api_key))
+  ) {
+    const now = new Date();
+    const end = new Date(now.getTime() + upcomingWindowDays * 86400_000);
+    const startISO = now.toISOString();
+    const endISO = end.toISOString();
+
+    if (settings.radarr_enabled && settings.radarr_url && settings.radarr_api_key) {
+      try {
+        const radarr = new RadarrClient(settings.radarr_url, settings.radarr_api_key);
+        const upcoming = await radarr.getUpcoming(startISO, endISO);
+        upcomingMovies = [];
+        for (const m of upcoming) {
+          const posterSrc = await resolveRemoteImage(m.posterRemoteUrl, `upcoming-movie-${m.id}`, 200);
+          upcomingMovies.push({
+            title: m.title,
+            year: m.year ? String(m.year) : undefined,
+            overview: m.overview,
+            posterSrc,
+            dateLabel: formatShortDate(m.releaseDate),
+            releaseLabel: releaseLabel(m.releaseType)
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to load Radarr upcoming:', err);
+      }
+    }
+
+    if (settings.sonarr_enabled && settings.sonarr_url && settings.sonarr_api_key) {
+      try {
+        const sonarr = new SonarrClient(settings.sonarr_url, settings.sonarr_api_key);
+        const episodes = await sonarr.getUpcoming(startISO, endISO);
+        const grouped = new Map<number, { title: string; posterRemoteUrl?: string; eps: UpcomingEpisode[] }>();
+        for (const ep of episodes) {
+          const entry = grouped.get(ep.seriesId);
+          if (entry) entry.eps.push(ep);
+          else grouped.set(ep.seriesId, { title: ep.seriesTitle, posterRemoteUrl: ep.posterRemoteUrl, eps: [ep] });
+        }
+        upcomingShows = [];
+        for (const [seriesId, grp] of grouped) {
+          const posterSrc = await resolveRemoteImage(grp.posterRemoteUrl, `upcoming-show-${seriesId}`, 200);
+          upcomingShows.push({
+            title: grp.title,
+            posterSrc,
+            episodes: grp.eps.map((e) => ({
+              label: `S${pad2(e.seasonNumber)}E${pad2(e.episodeNumber)}`,
+              title: e.episodeTitle,
+              dateLabel: formatShortDate(e.airDateUtc)
+            }))
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to load Sonarr upcoming:', err);
+      }
+    }
+  }
+
+  const hasUpcoming = (upcomingMovies && upcomingMovies.length > 0) || (upcomingShows && upcomingShows.length > 0);
+  // In "replace" mode, Recently Added is suppressed whenever Coming Soon has content.
+  const showRecent = !(settings.upcoming_replaces_recent && hasUpcoming);
+
+  // --- Recently Added -------------------------------------------------------
   const movies: RenderedItem[] = [];
   const shows: RenderedShow[] = [];
   const music: RenderedItem[] = [];
+
+  if (showRecent) {
+    // Determine "recently added" window: pull more than the cap, then filter by toggles client-side
+    const fetchCount = Math.max(settings.recently_added_count * 2, 20);
+    const all = await tautulli.getRecentlyAdded(fetchCount);
 
   if (settings.include_movies) {
     const movieItems = all.filter((i) => i.media_type === 'movie').slice(0, settings.recently_added_count);
@@ -154,6 +251,7 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
       });
     }
   }
+  } // end if (showRecent)
 
   // Optional sections
   let topMovies: RenderedStatRow[] | undefined;
@@ -272,6 +370,9 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
     topTV,
     topUsers,
     stats,
+    upcomingMovies,
+    upcomingShows,
+    upcomingWindowDays,
     generatedDate,
     logoSrc,
     includeUnsubscribe
@@ -295,6 +396,18 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
 
 function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n);
+}
+
+function formatShortDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function releaseLabel(t: 'digital' | 'physical' | 'cinemas'): string {
+  if (t === 'digital') return 'Digital';
+  if (t === 'physical') return 'Physical';
+  return 'Cinemas';
 }
 
 function guessContentType(p: string): string {
@@ -348,6 +461,22 @@ function buildPlainText(d: TemplateData): string {
   if (d.music.length) {
     lines.push(`NEW MUSIC (${d.music.length})`);
     for (const m of d.music) lines.push(`• ${m.title}${m.subtitle ? ` — ${m.subtitle}` : ''}`);
+    lines.push('');
+  }
+  if (d.upcomingMovies && d.upcomingMovies.length > 0) {
+    lines.push(`COMING SOON · MOVIES (${d.upcomingMovies.length})`);
+    for (const m of d.upcomingMovies) {
+      lines.push(`• ${m.dateLabel} — ${m.title}${m.year ? ` (${m.year})` : ''} [${m.releaseLabel}]`);
+    }
+    lines.push('');
+  }
+  if (d.upcomingShows && d.upcomingShows.length > 0) {
+    const epCount = d.upcomingShows.reduce((n, s) => n + s.episodes.length, 0);
+    lines.push(`COMING SOON · TV (${epCount})`);
+    for (const s of d.upcomingShows) {
+      lines.push(`• ${s.title}`);
+      for (const e of s.episodes) lines.push(`    ${e.label} — ${e.title} (${e.dateLabel})`);
+    }
     lines.push('');
   }
   if (d.includeUnsubscribe) {

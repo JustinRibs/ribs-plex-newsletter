@@ -20,6 +20,7 @@ import {
   updateSettings
 } from './db.js';
 import { TautulliClient } from './tautulli.js';
+import { RadarrClient, SonarrClient } from './arr.js';
 import { composeNewsletter } from './email/compose.js';
 import { composeBroadcast } from './email/broadcast.js';
 import { applySubstitutions, buildPreviewUnsubscribeUrl, PREVIEW_TOKEN, runNewsletter, sendComposed, verifySmtp, type SendableRecipient } from './email/send.js';
@@ -85,7 +86,12 @@ fastify.put<{ Body: Partial<Settings> }>('/api/settings', async (req) => {
     'enable_stats',
     'stats_window_days',
     'schedule_enabled',
-    'cloudinary_enabled'
+    'cloudinary_enabled',
+    'radarr_enabled',
+    'sonarr_enabled',
+    'upcoming_window_days',
+    'enable_upcoming',
+    'upcoming_replaces_recent'
   ];
   for (const k of numericKeys) {
     if (k in body) {
@@ -243,6 +249,28 @@ fastify.post('/api/test/tautulli', async () => {
     const t = new TautulliClient(s.tautulli_url, s.tautulli_api_key);
     await t.ping();
     return { ok: true, message: 'Connected to Tautulli' };
+  } catch (err: any) {
+    return { ok: false, message: err?.message || 'Failed' };
+  }
+});
+
+fastify.post('/api/test/radarr', async () => {
+  const s = getSettings();
+  try {
+    const r = new RadarrClient(s.radarr_url, s.radarr_api_key);
+    await r.ping();
+    return { ok: true, message: 'Connected to Radarr' };
+  } catch (err: any) {
+    return { ok: false, message: err?.message || 'Failed' };
+  }
+});
+
+fastify.post('/api/test/sonarr', async () => {
+  const s = getSettings();
+  try {
+    const r = new SonarrClient(s.sonarr_url, s.sonarr_api_key);
+    await r.ping();
+    return { ok: true, message: 'Connected to Sonarr' };
   } catch (err: any) {
     return { ok: false, message: err?.message || 'Failed' };
   }
